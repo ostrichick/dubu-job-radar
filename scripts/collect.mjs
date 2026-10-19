@@ -272,7 +272,7 @@ async function optionalManual({ root, filename, now, readFileImpl = readFile }) 
 }
 
 export async function buildFeed({ root = ROOT, fetchImpl = fetch, readFileImpl = readFile,
-  koreaCollector, koreaAtsCollector, timeoutMs = 12000, now = new Date().toISOString() } = {}) {
+  koreaCollector, koreaAtsCollector, koworkCollector, timeoutMs = 12000, now = new Date().toISOString() } = {}) {
   const profile = await readProfile(root, readFileImpl);
   const collectors = profile.collectors || {};
   const sourceTasks = SOURCES.map((source) => collectors[source.key] === false
@@ -284,6 +284,10 @@ export async function buildFeed({ root = ROOT, fetchImpl = fetch, readFileImpl =
   if (collectors.internationalAts === true) {
     const collector = (await import('./collect-international-ats.mjs')).collectInternationalAtsJobs;
     sourceTasks.push(collector({ fetchImpl, now, languages: profile.spokenLanguages, timeoutMs }));
+  }
+  if (collectors.kowork === true) {
+    const collector = koworkCollector || (await import('./collect-kowork.mjs')).collectKoworkJobs;
+    sourceTasks.push(collector({ fetchImpl, now, timeoutMs }));
   }
   sourceTasks.push(optionalManual({ root, filename: profile.manualFile || 'config/manual-jobs.json', now, readFileImpl }));
   const results = await Promise.all(sourceTasks);
@@ -303,8 +307,8 @@ export async function buildFeed({ root = ROOT, fetchImpl = fetch, readFileImpl =
   sourceStatus.push(recordStatus('Upwork', 'manual', 0, now,
     'Upwork 공개 RSS 자동 수집 기능이 중단되어 검색 결과를 생성하지 않습니다. 계정 로그인 후 수동 검색 링크를 이용하세요.',
     { url: 'https://www.upwork.com/nx/search/jobs/', manualSearches: upworkSearches }));
-  sourceStatus.push(recordStatus('KOWORK', 'manual', 0, now,
-    'Priority source. KOWORK terms restrict automated bulk crawling and reposting. Direct English listings only until written API/data permission.',
+  if (collectors.kowork !== true) sourceStatus.push(recordStatus('KOWORK', 'manual', 0, now,
+    'KOWORK is disabled in this profile. Open the official public listings for manual research.',
     { url: 'https://kowork.kr/en' }));
   sourceStatus.push(recordStatus('K-WORK', 'manual', 0, now,
     'Korean government SME/foreign talent job platform. Each listing needs language and visa verification. Original-site browsing only.',

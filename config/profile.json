@@ -20,7 +20,8 @@
     "arbeitnow": true,
     "korea": false,
     "koreaAts": true,
-    "internationalAts": true
+    "internationalAts": true,
+    "kowork": true
   },
   "manualFile": "config/manual-jobs.json",
   "upworkSearches": [

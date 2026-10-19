@@ -31,7 +31,7 @@ test('Dubu Job Radar is branded in English and foreign-friendly original-site li
   const links = page.locator('#panel-offline .platform-grid a');
   await expect(links).toHaveCount(6);
   await expect(links.first()).toHaveAttribute('href', 'https://kowork.kr/en');
-  await expect(page.locator('#panel-offline .platform-footnote')).toContainText('not automatically');
+  await expect(page.locator('#panel-offline .platform-footnote')).toContainText('lightweight public-listing discovery');
 });
 
 test('online avoids live interpreting; offline includes nationwide and retains historical jobs', async ({ page }) => {
