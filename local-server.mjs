@@ -22,4 +22,4 @@ const server = createServer(async (req, res) => {
   } catch { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('File not found'); }
 });
 
-server.listen(port, '127.0.0.1', () => console.log(`Nicole Job Radar: http://127.0.0.1:${port}`));
+server.listen(port, '127.0.0.1', () => console.log(`Dubu Job Radar: http://127.0.0.1:${port}`));

@@ -1,36 +1,40 @@
-# Nicole Job Radar (development)
+﻿# Dubu Job Radar
 
-온라인 원격/프리랜스 업무와 한국 전국의 출근형 업무를 모아 비교하는 **별도의 채용 정보 대시보드**입니다. 사용자별 지원 기록은 브라우저 로컬에만 저장합니다. 기존 `job-dashboard`와 사용자 상태, 추천 이력, 공고 피드를 공유하지 않습니다.
+아내의 실제 취업 가능성을 우선해 전주·완주 및 한국 전국의 오프라인 채용과 한국 거주자가 지원할 가능성이 있는 원격 업무를 별도 탭에서 조사하는 영어 UI 채용 레이더입니다. 공고 수가 많다는 것과 지원 가능하다는 것은 구별합니다.
 
-## 실행
+## 실행과 검증
 
-Node.js 22 이상이 필요합니다. `npm run refresh`로 공식 공개 소스의 공고를 수집하고 `npm start`로 `http://127.0.0.1:4380`에 접속합니다. `npm run check`는 수집·지역 분류 등의 테스트를 실행합니다. 브라우저 회귀 검사는 `npm run test:e2e`이며 최초 실행 시 `npx playwright install chromium`으로 테스트용 브라우저를 준비할 수 있습니다. `.env` 파일은 자동 로딩하지 않으며 인증키는 실행 환경의 `WORK24_AUTH_KEY`에만 지정합니다.
+Node.js 22 이상. npm.cmd run refresh로 공개 API 데이터를 갱신하고 npm.cmd run check 및 npm.cmd run test:e2e로 검증합니다. npm.cmd start는 localhost:4380에서 정적 페이지를 엽니다.
 
-## 두 가지 탐색 범위
+## 수집 범위
 
-- **온라인**: 마케팅, 광고 평가/운영, SNS 콘텐츠, 번역/현지화, 기타 관련 원격 프로젝트를 검색합니다. 음성/영상 **실시간 통역은 제외**합니다. 원격 표시가 있어도 한국 거주자가 가능한지는 원문으로 확인해야 합니다.
-- **오프라인**: 전국 공고를 보존하고 **전주·완주권**, **익산·김제 등 근교(실제 통근 확인 필요)**, **타지역(이사 또는 근무 형태 협의 필요)**, **위치 미확인**으로 구분합니다. 기본값은 전국 전체 보기이며, 다른 지역 공고를 자동 삭제하지 않습니다. 실제 교통시간이나 출퇴근 가능 여부를 계산했다고 표시하지 않습니다.
+- 온라인: Remotive, Jobicy, Remote OK, Arbeitnow 공식 공개 API. 해외 거주 제한, 지원할 수 없는 필수 언어, 실시간 통역, 5년 이상 경력 필수 직무를 가능한 범위에서 제외합니다.
+- 한국 오프라인: 공식 채용 ATS Greenhouse의 KRAFTON 및 Appier, Lever의 ShopBack·Xsolla·Channel Corp.·Match Group, Ashby의 Sahara AI·Plaud. 한국 근무지가 명시된 공고를 우선하며, 신입 경력·한국어 요구사항을 검토합니다. 90일 초과 오래된 게시물을 자동 보존하지 않으며, 정확한 지원 자격은 원문 확인이 필요합니다.
+- 고용24는 사용자 요청에 따라 기본 수집에서 제외했습니다. 외국인 대상 구직과 직접 관련되는 소스를 우선합니다.
+- 출근형 공고는 전주·완주, 익산·김제, 그 밖의 국내 지역(이사/근무형태 협의 필요), 위치 미확인으로 구분합니다. 실제 통근 시간은 계산하지 않습니다.
+- 데이터의 공고 상태 seen은 이번 수집에서 URL이 발견됐다는 의미이고, 지원 가능이나 마감 전을 보장하지 않습니다. 과거에만 등장한 URL은 이전 확인 시점을 명시합니다.
 
-전국 단위의 국내 데이터 수집에는 고용24 공식 채용정보 API를 사용하며 신청 인증키(`WORK24_AUTH_KEY`)가 필요합니다. 미설정 시 **고용24 수집분은 0건**이고 상태 패널에 그 사유를 명시합니다. 수집은 직무 키워드를 이용한 제한된 첫 페이지 조회로, 전국 모든 공고를 빠짐없이 수집했다고 주장하지 않습니다. 공식 API: https://www.work24.go.kr/cm/e/a/0110/selectOpenApiIntro.do
+## 외국인 채용 플랫폼 — KOWORK 최우선
 
-고용24가 미설정되어도 KRAFTON·Appier의 공개 공식 Greenhouse 채용 목록에서 한국 근무지 관련 공고를 일부 가져옵니다. 이는 **일부 회사의 공개 채용**에 불과합니다. 전국 전수조사로 해석하면 안 됩니다. 현재 온라인 공개 API 수집 후보는 Remotive, Jobicy, Remote OK, Arbeitnow입니다. 수집 성패 및 공고 수는 매회 `수집 현황 및 출처 상태`에 기록합니다.
+KOWORK: https://kowork.kr/en
+KOWORK 스페인어 검색: https://kowork.kr/en?keyword=spanish
+K-WORK: https://k-work.or.kr/empmnInfo/empmn/list.do
+한울타리: https://mcfamily.or.kr/en/jobs/opening
+JOBPLOY: https://www.jobploy.kr/en
+PeopleNJob 신입 공고: https://www.peoplenjob.com/jobs?career_level=1
 
-이전 수집에서 사라진 공고는 마지막 확인 시점과 함께 60일/최대 2,000건까지 정보 조사용으로 보존하고 `과거 기록`으로 구분합니다. 일부 소스 실패는 공고 종료로 단정하지 않고 `수집 여부 미검증`으로 표시합니다. 지리적 지원 가능 여부와 실제 요구 언어의 적합 여부를 구분해 저장합니다.
+KOWORK robots.txt에서는 공개 공고 URL을 허용하지만, 공식 약관 https://kowork.kr/en/terms 는 DB 기계적 대량 크롤링·미러링과 무단 재게시를 제한합니다. 개별 공고에는 무단전재·재배포·재가공 금지 고지도 있습니다. 따라서 사이트맵에 공개된 637개 공고 링크를 일괄 수집해 대시보드에 재게시하지 않습니다. 이는 현재 모집 공고 637개를 뜻하지도 않습니다.
 
-## Upwork와 플랫폼 수집 범위
+KOWORK 자동 연동을 위한 현실적인 방법은 운영사 master@kowork.kr 에 게시물 메타데이터·직접 링크 표시 권한, API 또는 제휴 데이터 제공, 업데이트 빈도, 만료 처리 및 저작권 표시 조건을 서면으로 문의한 뒤 승인된 범위만 구현하는 것입니다. 허가 전에는 공식 검색으로 연결하고 사용자가 직접 확인한 개별 URL을 브라우저에 수동 저장하도록 합니다.
 
-Upwork는 2024년 8월 공식 RSS 지원을 중단했습니다. 따라서 **Upwork를 자동 수집 출처로 가장하지 않고**, 홈페이지의 검색 바로가기 및 사용자가 확인한 링크의 수동 등록으로 지원합니다. Upwork의 공식 저장 검색·맞춤 알림 기능을 사용해 공고를 찾을 수 있습니다. https://support.upwork.com/hc/en-us/articles/52052528243731-RSS-deprecation
+한울타리, JOBPLOY, PeopleNJob 역시 무단 복제/재게시 또는 로봇 접근 제한이 확인되어 공식 원문 검색 링크만 제공합니다. K-WORK는 외국인 인재 공공 채용 서비스지만 개별 공고의 한국어·비자 요구조건을 확인해야 합니다. 잡코리아 공식 API https://www.jobkorea.co.kr/service/api 는 신청·승인이 필요합니다. 승인 전 실제 수집 건수로 집계하지 않습니다.
 
-LinkedIn, ProZ 등의 공식 검색 페이지도 바로가기를 통해 확인하며, 자동으로 가져온 공고와 **외부 탐색 링크**를 구분합니다. 원문 링크, 실제 근무국가, 한국어 요구사항, 급여, 마감일은 출처에 표시된 정보가 있을 때만 확정적으로 보여줍니다.
+## 사용자 데이터·배포
 
-**KOWORK:** https://kowork.kr/en 에서 한국 거주 외국인 대상 해외마케팅·스페인어 현지화 직무를 확인했습니다. 예를 들어 https://kowork.kr/en/post/4814 (Spanish market marketing), https://kowork.kr/en/post/7244 (Spanish marketing; Korean-language interview requirement) 등이 있습니다. 다만 게시물 하단에 허가 없는 공고 복제·배포 금지 안내가 있으므로 KOWORK의 글과 이미지를 복제하지 않고 공식 검색으로 연결합니다. 향후 플랫폼의 공식 재배포 허락/API가 확인되면 자동 수집 여부를 별도 재검토합니다. 한국어 고급이나 인터뷰 요건이 있는 공고는 Spanish 관련성이 높아도 자격 적합성을 따로 판단합니다.
+개인 관심 저장, 공고/회사/출처 숨김, 수동 등록은 브라우저 localStorage에만 저장됩니다. 예전 Nicole Job Radar의 저장 항목은 유지하도록 구형 저장소 키를 변경하지 않았습니다. 사이트 경로만 변경되므로 같은 GitHub Pages 도메인에서 기존 저장 정보를 사용할 수 있습니다. PC-휴대폰 간 자동 동기화는 지원하지 않습니다.
 
-웹페이지 하단의 **공고 직접 추가**를 통해 Upwork 또는 다른 사이트에서 발견한 공고를 주소·제목·분야·지역별로 브라우저에 저장할 수 있습니다. 이는 브라우저의 로컬 저장소이므로 PC와 노트북 사이에서 자동으로 동기화되지 않습니다. 공개 수집 API 데이터는 `public/jobs.json`에 저장됩니다.
+공개 저장소: https://github.com/ostrichick/dubu-job-radar
+사이트: https://ostrichick.github.io/dubu-job-radar/
+GitHub Pages Actions는 6시간 간격으로 테스트·공식 API 새로고침·사이트 배포를 수행합니다. KOWORK 등에 무단으로 자동 요청하지 않습니다.
 
-직접 수집한 공고를 보완하려면 `config/manual-jobs.example.json`을 참고해 로컬 `config/manual-jobs.json`을 만들고 URL과 회사명 등을 입력할 수 있습니다. 개인적인 메모/지원 현황은 공개 Git 저장소에 넣지 마세요.
-
-## 배포
-
-배포 대상은 https://github.com/ostrichick/nicole-job-radar 의 GitHub Pages입니다. `.github/workflows/pages.yml`은 6시간 간격으로 공식 공개 API를 수집하고, 단위/E2E 테스트 및 데이터 검증을 거친 정적 페이지를 갱신합니다. 마지막 수집에서 사라진 공고 기록이 다음 실행에도 이어지도록 피드 기준선 파일을 커밋합니다. 고용24 API 인증키는 별도로 발급한 후 해당 저장소의 Actions secrets에 `WORK24_AUTH_KEY`라는 이름으로 보관해야 하며, 공개 파일에 키를 쓰면 안 됩니다.
-
-소스 코드의 주 작업 위치는 `C:\Projects\DigitalNomad\nicole-job-radar`입니다. 이 디렉터리는 상위 `DigitalNomad` Git 저장소에 속합니다. 배포 전용 원격 저장소에는 `git subtree split --prefix=nicole-job-radar HEAD`로 만든 서브트리만 push하므로 기존 `job-search-radar` 소스와 기록이 함께 공개되지 않습니다.
+주 소스 경로는 C:\Projects\DigitalNomad\nicole-job-radar이며, 디렉터리 이름을 변경하지 않아도 공개 서비스 이름은 Dubu Job Radar입니다. 상위 저장소의 다른 개인 프로젝트는 공개 배포 저장소에 함께 밀어 넣지 않습니다.

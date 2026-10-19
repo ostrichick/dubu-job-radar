@@ -23,6 +23,17 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/jobs.json', (route) => route.fulfill({ json: feed }));
 });
 
+test('Dubu Job Radar is branded in English and foreign-friendly original-site links remain direct', async ({ page }) => {
+  await page.goto('/');
+  await expect(page).toHaveTitle(/Dubu Job Radar/);
+  await expect(page.locator('.brand-words')).toContainText('DUBU');
+  await page.locator('#tab-offline').click();
+  const links = page.locator('#panel-offline .platform-grid a');
+  await expect(links).toHaveCount(6);
+  await expect(links.first()).toHaveAttribute('href', 'https://kowork.kr/en');
+  await expect(page.locator('#panel-offline .platform-footnote')).toContainText('not automatically');
+});
+
 test('online avoids live interpreting; offline includes nationwide and retains historical jobs', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (err) => errors.push(err.message));

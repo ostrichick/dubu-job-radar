@@ -9,6 +9,8 @@ test('Korean-language specialist roles are excluded, not all Korea market jobs',
   assert.equal(excludeQualificationReason({ title: '[Studio Support Div.] Korean Localization Specialist (1년 이상 / 계약직)' }), 'korean_language_professional');
   assert.equal(excludeQualificationReason({ title: 'Korean Translator / Linguist' }), 'korean_language_professional');
   assert.equal(excludeQualificationReason({ title: '한국어 번역 담당자' }), 'korean_language_professional');
+  assert.equal(excludeQualificationReason({ title: '한일 통번역 담당자' }), 'unsupported_language_or_sales_role');
+  assert.equal(excludeQualificationReason({ title: 'Sales Manager, Advertising Solutions' }), 'unsupported_language_or_sales_role');
   assert.equal(excludeQualificationReason({ title: 'Spanish marketing assistant for Korea', description: 'Marketing to Korean consumers.' }), null);
   assert.equal(excludeQualificationReason({ title: 'International marketing assistant', description: 'Fluent Korean required.' }), 'advanced_korean_required');
   assert.equal(excludeQualificationReason({ title: '해외 마케팅 담당자', description: '한국어 비즈니스 회화 수준 필수' }), 'advanced_korean_required');

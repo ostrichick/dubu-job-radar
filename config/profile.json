@@ -18,8 +18,9 @@
     "jobicy": true,
     "remoteok": true,
     "arbeitnow": true,
-    "korea": true,
-    "koreaAts": true
+    "korea": false,
+    "koreaAts": true,
+    "internationalAts": true
   },
   "manualFile": "config/manual-jobs.json",
   "upworkSearches": [

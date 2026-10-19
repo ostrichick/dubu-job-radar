@@ -249,6 +249,7 @@ async function optionalKoreaAts({ enabled, now, fetchImpl, koreaAtsCollector }) 
     return {
       jobs: result.jobs.filter((x) => x?.url && x?.id && x?.market && !(x.market === 'online' && x.category === 'interpreting')),
       sourceStatus: result.sourceStatus.map((status) => ({ ...status, checkedAt: status.checkedAt || now })),
+      excludedUrls: result.excludedUrls || [],
       successfulRequests: result.sourceStatus.filter((x) => x.status === 'ok' || x.status === 'partial').length,
     };
   } catch (err) {
@@ -277,8 +278,13 @@ export async function buildFeed({ root = ROOT, fetchImpl = fetch, readFileImpl =
   const sourceTasks = SOURCES.map((source) => collectors[source.key] === false
     ? Promise.resolve({ jobs: [], successfulRequests: 0, sourceStatus: [recordStatus(source.name, 'disabled', 0, now, '사용자 프로필에서 비활성화', { url: source.url })] })
     : collectOne(source, { fetchImpl, timeoutMs, now, homeCountry: profile.homeCountry, languages: profile.spokenLanguages }));
-  sourceTasks.push(optionalKorea({ enabled: collectors.korea !== false, now, fetchImpl, koreaCollector }));
+  // Work24 is outside this foreign-friendly board's normal collection scope.
+  if (collectors.korea === true) sourceTasks.push(optionalKorea({ enabled: true, now, fetchImpl, koreaCollector }));
   sourceTasks.push(optionalKoreaAts({ enabled: collectors.koreaAts !== false, now, fetchImpl, koreaAtsCollector }));
+  if (collectors.internationalAts === true) {
+    const collector = (await import('./collect-international-ats.mjs')).collectInternationalAtsJobs;
+    sourceTasks.push(collector({ fetchImpl, now, languages: profile.spokenLanguages, timeoutMs }));
+  }
   sourceTasks.push(optionalManual({ root, filename: profile.manualFile || 'config/manual-jobs.json', now, readFileImpl }));
   const results = await Promise.all(sourceTasks);
   const jobs = dedupeJobs(results.flatMap((x) => x.jobs).filter((job) =>
@@ -298,8 +304,17 @@ export async function buildFeed({ root = ROOT, fetchImpl = fetch, readFileImpl =
     'Upwork 공개 RSS 자동 수집 기능이 중단되어 검색 결과를 생성하지 않습니다. 계정 로그인 후 수동 검색 링크를 이용하세요.',
     { url: 'https://www.upwork.com/nx/search/jobs/', manualSearches: upworkSearches }));
   sourceStatus.push(recordStatus('KOWORK', 'manual', 0, now,
-    'Official job platform for foreigners in Korea. Public pages restrict copying; use English source search and add verified URLs manually.',
+    'Priority source. KOWORK terms restrict automated bulk crawling and reposting. Direct English listings only until written API/data permission.',
     { url: 'https://kowork.kr/en' }));
+  sourceStatus.push(recordStatus('K-WORK', 'manual', 0, now,
+    'Korean government SME/foreign talent job platform. Each listing needs language and visa verification. Original-site browsing only.',
+    { url: 'https://k-work.or.kr/empmnInfo/empmn/list.do' }));
+  sourceStatus.push(recordStatus('Hanultari', 'manual', 0, now,
+    'Seoul multicultural-family job portal. Automatic republication restricted; verify jobs at original source.',
+    { url: 'https://mcfamily.or.kr/en/jobs/opening' }));
+  sourceStatus.push(recordStatus('JOBPLOY', 'manual', 0, now,
+    'Foreigner-focused Korea jobs. Terms restrict unlicensed copying; use original-site search.',
+    { url: 'https://www.jobploy.kr/en' }));
   return { feed: { updatedAt: now, jobs, sourceStatus },
     excludedUrls: results.flatMap((x) => x.excludedUrls || []),
     successfulRequests: results.reduce((n, x) => n + x.successfulRequests, 0),

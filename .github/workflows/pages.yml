@@ -1,4 +1,4 @@
-name: Refresh Nicole jobs and deploy Pages
+name: Refresh Dubu jobs and deploy Pages
 
 on:
   push:
@@ -16,15 +16,13 @@ permissions:
   id-token: write
 
 concurrency:
-  group: nicole-job-radar-pages
+  group: dubu-job-radar-pages
   cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    env:
-      WORK24_AUTH_KEY: ${{ secrets.WORK24_AUTH_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -54,7 +52,7 @@ jobs:
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Refresh Nicole jobs snapshot [skip ci]'
+          git commit -m 'Refresh Dubu jobs snapshot [skip ci]'
           git push origin HEAD:main
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4

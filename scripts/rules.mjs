@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 const ROLE_RULES = [
   { category: 'translation', re: /\b(translat(?:e|es|ed|ion|ions|or|ors|ing)|locali[sz](?:ation|e|ing|ed|er|ers)|language\s+(?:quality|review|qa|specialist)|linguist|subtitl(?:e|es|ing|er)|proofread(?:er|ing)?)\b|번역|현지화|교정|traducci[oó]n|traductor(?:a)?|traducir|localizaci[oó]n/i },
   { category: 'advertising', re: /\b(advertis(?:ing|ement|ements|er)|ads?\s+(?:ops|operations|campaigns?|specialist|manager|buyer|buying)|paid\s+(?:media|social|search|ads?|acquisition)|media\s+buy(?:er|ing)|ppc|programmatic|performance\s+market(?:er|ing)|google\s+ads?|meta\s+ads?)\b|광고|퍼포먼스\s*마케팅|publicidad|anuncios?\s+digitales?/i },
-  { category: 'marketing', re: /\b(marketing|marketer|growth\s+(?:specialist|manager|marketing|associate)|seo|sem|crm|social\s+media\s+(?:manager|specialist|strategist|coordinator)|brand\s+(?:manager|strategist|marketing)|email\s+marketing|demand\s+generation|campaign\s+manager|community\s+manager|digital\s+campaigns?)\b|마케팅|브랜드\s*관리|mercadotecnia|mercadeo|m[aá]rketing/i },
+  { category: 'marketing', re: /\b(marketing|marketer|growth\s+(?:specialist|manager|marketing|associate)|seo|sem|crm|social\s+media(?:\s*&\s*community)?\s+(?:manager|specialist|strategist|coordinator)|brand\s+(?:manager|strategist|marketing)|email\s+marketing|demand\s+generation|campaign\s+manager|community\s+(?:manager|coordinator|specialist|associate)|digital\s+campaigns?)\b|마케팅|브랜드\s*관리|mercadotecnia|mercadeo|m[aá]rketing/i },
   { category: 'content', re: /\b(content\s+(?:creat(?:or|ion)|writer|editor|strategist|manager|marketing|producer|specialist|coordinator|moderator)|copywrit(?:er|ing)|social\s+(?:content|media\s+content)|video\s+editor|editorial\s+(?:writer|specialist|manager)|newsletter\s+(?:writer|editor)|ugc\s+creator)\b|콘텐츠\s*(?:제작|기획|마케팅|에디터)|카피라이터|redactor(?:a)?\s+de\s+contenidos?|creaci[oó]n\s+de\s+contenido/i }
 ];
 
@@ -18,6 +18,9 @@ const ENGLISH_RE = /\b(english|anglophone|englisch)\b|영어/i;
 export function excludeQualificationReason({ title = '', description = '' } = {}) {
   const heading = safeText(title, 400);
   const body = safeText(description, 10000);
+  if (/한일\s*(?:통번역|번역|통역)|일본어\s*(?:통번역|번역|통역)|^(?:account\s+manager|sales\s+manager|business\s+development\s+manager)\b/i.test(heading)) {
+    return 'unsupported_language_or_sales_role';
+  }
   const combined = `${heading} ${body}`;
   // A Korean-language localization professional is necessarily being hired
   // to produce/review Korean, regardless of whether the ad spells out TOPIK.

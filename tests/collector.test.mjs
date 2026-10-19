@@ -336,7 +336,7 @@ test('official ATS status can mark an absent Korean employer posting as not_seen
 async function setup() {
   const root = await mkdtemp(join(tmpdir(), 'job-radar-'));
   await mkdir(join(root, 'config'), { recursive: true });
-  await writeFile(join(root, 'config/profile.json'), JSON.stringify({ homeCountry: 'KR', collectors: {}, manualFile: 'config/manual-jobs.json' }));
+  await writeFile(join(root, 'config/profile.json'), JSON.stringify({ homeCountry: 'KR', collectors: { korea: true }, manualFile: 'config/manual-jobs.json' }));
   return root;
 }
 
