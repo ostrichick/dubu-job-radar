@@ -65,6 +65,14 @@ test('storage notifications preserve two-tab hiding and restoration without Broa
   await context.route('**/jobs.json', (route) => route.fulfill({ json: { ...feed, jobs: [feed.jobs[0], { ...feed.jobs[0], id: 'fixture:second', title: 'Spanish Content Editor', url: 'https://example.org/second' }] } }));
   const other = await context.newPage();
   await Promise.all([page.goto('/'), other.goto('/')]);
+  await page.locator('#list-online .hide-toggle').first().click();
+  const pendingHide = page.getByRole('button', { name: 'Hide this job', exact: true });
+  await pendingHide.focus();
+  await other.locator('#list-online .bookmark-button').first().click();
+  await expect(page.locator('#list-online .bookmark-button').first()).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#list-online .hide-menu').first()).toHaveAttribute('open', '');
+  await expect(pendingHide).toBeFocused();
+  await page.locator('#list-online .hide-toggle').first().click();
   await Promise.all([page.locator('#list-online .hide-toggle').first().click(), other.locator('#list-online .hide-toggle').nth(1).click()]);
   await Promise.all([page.getByRole('button', { name: 'Hide this job', exact: true }).click(), other.getByRole('button', { name: 'Hide this job', exact: true }).click()]);
   for (const p of [page, other]) await expect(p.locator('#hidden-count')).toHaveText('2 hidden');

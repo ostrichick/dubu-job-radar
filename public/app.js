@@ -302,6 +302,7 @@ function infoRow(label, content, className = '') {
 
 function createCard(job) {
   const card = el('article', 'job-card');
+  card.dataset.jobId = job.id;
   const header = el('div', 'card-top');
   const chips = el('div', 'top-chips');
   chips.append(el('span', 'category-chip', categoryNames[job.category]));
@@ -635,9 +636,21 @@ function showMessage(text, kind = 'info') {
 }
 
 function render() {
+  // A commit from another tab must not interrupt an open menu or keyboard action.
+  const focusable = 'button,summary,a,input,select,textarea';
+  const active = document.activeElement;
+  const activeCard = active?.closest('.job-card');
+  const focus = activeCard ? { id: activeCard.dataset.jobId, index: [...activeCard.querySelectorAll(focusable)].indexOf(active) } : null;
+  const openDetails = new Map([...document.querySelectorAll('.job-card')].map((card) => [card.dataset.jobId,
+    [...card.querySelectorAll('details')].flatMap((detail, index) => detail.open ? [index] : [])]));
   $('feed-date').textContent = state.loaded ? `Feed updated ${formatDate(state.updatedAt, true)}` : 'Feed status unknown';
   renderJobs('online'); renderJobs('offline'); renderSources();
   renderManualJobs(); renderHidden();
+  for (const card of document.querySelectorAll('.job-card')) {
+    const details = card.querySelectorAll('details');
+    for (const index of openDetails.get(card.dataset.jobId) || []) if (details[index]) details[index].open = true;
+    if (focus?.id === card.dataset.jobId && focus.index >= 0) card.querySelectorAll(focusable)[focus.index]?.focus({ preventScroll: true });
+  }
   if (!storage.writable) {
     document.querySelectorAll('.bookmark-button,.hide-menu button,.manual-remove,#manual-form button[type=submit],#restore-all,#hidden-list button').forEach((button) => { button.disabled = true; });
     showMessage(`Personal state is read-only: ${storage.error?.message || 'storage unavailable'}. Reload to retry.`, 'warning');
