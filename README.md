@@ -23,10 +23,14 @@ Upwork는 2024년 8월 공식 RSS 지원을 중단했습니다. 따라서 **Upwo
 
 LinkedIn, ProZ 등의 공식 검색 페이지도 바로가기를 통해 확인하며, 자동으로 가져온 공고와 **외부 탐색 링크**를 구분합니다. 원문 링크, 실제 근무국가, 한국어 요구사항, 급여, 마감일은 출처에 표시된 정보가 있을 때만 확정적으로 보여줍니다.
 
+**KOWORK:** https://kowork.kr/en 에서 한국 거주 외국인 대상 해외마케팅·스페인어 현지화 직무를 확인했습니다. 예를 들어 https://kowork.kr/en/post/4814 (Spanish market marketing), https://kowork.kr/en/post/7244 (Spanish marketing; Korean-language interview requirement) 등이 있습니다. 다만 게시물 하단에 허가 없는 공고 복제·배포 금지 안내가 있으므로 KOWORK의 글과 이미지를 복제하지 않고 공식 검색으로 연결합니다. 향후 플랫폼의 공식 재배포 허락/API가 확인되면 자동 수집 여부를 별도 재검토합니다. 한국어 고급이나 인터뷰 요건이 있는 공고는 Spanish 관련성이 높아도 자격 적합성을 따로 판단합니다.
+
 웹페이지 하단의 **공고 직접 추가**를 통해 Upwork 또는 다른 사이트에서 발견한 공고를 주소·제목·분야·지역별로 브라우저에 저장할 수 있습니다. 이는 브라우저의 로컬 저장소이므로 PC와 노트북 사이에서 자동으로 동기화되지 않습니다. 공개 수집 API 데이터는 `public/jobs.json`에 저장됩니다.
 
 직접 수집한 공고를 보완하려면 `config/manual-jobs.example.json`을 참고해 로컬 `config/manual-jobs.json`을 만들고 URL과 회사명 등을 입력할 수 있습니다. 개인적인 메모/지원 현황은 공개 Git 저장소에 넣지 마세요.
 
 ## 배포
 
-현재는 **개발용 로컬 버전**입니다. 공개 웹주소를 생성하거나 GitHub Pages에 배포한 상태가 아닙니다. 별도의 원격 저장소와 Pages 구성을 사용해 기존 `job-search-radar` 사이트를 보호하는 것을 권장합니다. 자동 수집을 운영하려면 각 API의 이용 조건 및 GitHub Actions 인증키/비밀정보 설정이 필요합니다.
+배포 대상은 https://github.com/ostrichick/nicole-job-radar 의 GitHub Pages입니다. `.github/workflows/pages.yml`은 6시간 간격으로 공식 공개 API를 수집하고, 단위/E2E 테스트 및 데이터 검증을 거친 정적 페이지를 갱신합니다. 마지막 수집에서 사라진 공고 기록이 다음 실행에도 이어지도록 피드 기준선 파일을 커밋합니다. 고용24 API 인증키는 별도로 발급한 후 해당 저장소의 Actions secrets에 `WORK24_AUTH_KEY`라는 이름으로 보관해야 하며, 공개 파일에 키를 쓰면 안 됩니다.
+
+소스 코드의 주 작업 위치는 `C:\Projects\DigitalNomad\nicole-job-radar`입니다. 이 디렉터리는 상위 `DigitalNomad` Git 저장소에 속합니다. 배포 전용 원격 저장소에는 `git subtree split --prefix=nicole-job-radar HEAD`로 만든 서브트리만 push하므로 기존 `job-search-radar` 소스와 기록이 함께 공개되지 않습니다.

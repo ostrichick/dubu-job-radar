@@ -124,6 +124,14 @@ summary:focus-visible, .tab-panel:focus-visible {
 .bookmark-button:hover { background: #f3f8f2; border-color: #dce7de; color: var(--green); }
 .bookmark-button.is-saved { color: var(--green); }
 .bookmark-button.is-saved .icon { fill: #b7d7c0; }
+.card-actions { position: relative; display: flex; align-items: flex-start; flex: none; gap: 3px; }
+.hide-menu { position: relative; }
+.hide-toggle { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid #e1e8df; border-radius: 7px; background: #fff; color: #687c6b; font-size: 21px; font-weight: 400; line-height: 1; cursor: pointer; list-style: none; }
+.hide-toggle::-webkit-details-marker { display: none; }
+.hide-toggle:hover, .hide-menu[open] .hide-toggle { background: #f6eee9; color: #924c3e; border-color: #e2c8bf; }
+.hide-options { position: absolute; top: calc(100% + 6px); right: 0; z-index: 20; min-width: 186px; padding: 6px; background: #fff; border: 1px solid #d8e3da; border-radius: 9px; box-shadow: 0 12px 27px rgb(18 45 28 / 16%); }
+.hide-options button { display: block; width: 100%; padding: 10px 11px; border: none; border-radius: 5px; color: #60483d; background: transparent; font-size: 12px; line-height: 1.4; text-align: left; }
+.hide-options button:hover, .hide-options button:focus-visible { background: #f7f0ec; }
 .job-title { margin: 14px 0 6px; color: #1b2a20; font-size: 17px; font-weight: 780; letter-spacing: -.045em; line-height: 1.55; overflow-wrap: anywhere; }
 .job-company { margin: 0; color: #67786b; font-size: 13px; font-weight: 650; }
 .job-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 18px; }
@@ -209,6 +217,22 @@ summary:focus-visible, .tab-panel:focus-visible {
 .manual-remove { flex: none; padding: 7px 11px; border: 1px solid #e6d9d6; border-radius: 6px; color: #a05f51; background: #fff9f7; font-size: 11px; font-weight: 800; }
 .manual-remove:hover { background: #fbe9e5; }
 
+.hidden-manager { margin-top: 23px; border: 1px solid #dce4de; border-radius: 11px; background: #fff; }
+.hidden-manager > summary { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 17px 23px; color: #4d6253; font-size: 13px; font-weight: 800; cursor: pointer; }
+.hidden-manager > summary::marker { color: #557960; }
+.hidden-count { margin-left: auto; padding: 5px 10px; border-radius: 12px; background: #f1f5f0; color: #66806d; font-size: 11px; }
+.hidden-content { padding: 0 23px 22px; }
+.hidden-content > p { margin: 0 0 14px; color: #778779; font-size: 12px; line-height: 1.7; }
+.hidden-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.hidden-empty { grid-column: 1 / -1; color: #849083; font-size: 12px; }
+.hidden-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; padding: 10px 12px; border: 1px solid #e5ebe4; border-radius: 7px; background: #fbfcfa; }
+.hidden-row-label { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.hidden-row-label small { color: #78857b; font-size: 10px; }
+.hidden-row-label strong { color: #3c5142; font-size: 12px; overflow-wrap: anywhere; }
+.restore-button, .restore-all { padding: 7px 11px; border: 1px solid #c9dbce; border-radius: 6px; color: #245a3c; background: #f2f8f2; font-size: 11px; font-weight: 750; }
+.restore-button:hover, .restore-all:hover { background: #e4f0e7; }
+.restore-all { margin-top: 15px; }
+
 .source-drawer { margin-top: 23px; border: 1px solid #e0e6de; border-radius: 11px; background: #fff; }
 .source-drawer summary { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 16px 23px; color: #4d6253; font-size: 13px; font-weight: 800; cursor: pointer; }
 .source-drawer summary::marker { color: #557960; }
@@ -252,7 +276,7 @@ summary:focus-visible, .tab-panel:focus-visible {
   .intro-description { font-size: 13px; }
   .tab-panel { padding: 25px 19px 29px; }
   .panel-intro { flex-wrap: wrap; }
-  .jobs-grid, .source-list { grid-template-columns: 1fr; }
+  .jobs-grid, .source-list, .hidden-list { grid-template-columns: 1fr; }
   .platform-section { padding: 21px; }
   .manual-form { grid-template-columns: 1fr; }
   .source-empty { grid-column: auto; }
@@ -293,6 +317,8 @@ summary:focus-visible, .tab-panel:focus-visible {
   .platform-grid { grid-template-columns: 1fr; }
   .platform-section { padding: 17px; }
   .source-drawer summary { padding: 15px; font-size: 12px; }
+  .hidden-manager > summary { padding: 15px; font-size: 12px; }
+  .hidden-content { padding: 0 14px 17px; }
   .manual-entry > summary { padding: 15px; font-size: 12px; }
   .manual-content { padding: 0 14px 17px; }
   .source-summary { font-size: 10px; }

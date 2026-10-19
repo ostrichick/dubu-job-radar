@@ -2,18 +2,19 @@ const FEED_URL = './jobs.json';
 const PAGE_SIZE = 24;
 const STORAGE_KEY = 'nicole-job-radar:watchlist:v1';
 const MANUAL_KEY = 'nicole-job-radar:manual-jobs:v1';
-const numberFormatter = new Intl.NumberFormat('ko-KR');
+const HIDDEN_KEY = 'nicole-job-radar:hidden:v1';
+const numberFormatter = new Intl.NumberFormat('en-US');
 
 const categoryNames = {
-  marketing: '마케팅', advertising: '광고', translation: '번역',
-  interpreting: '통역', content: '콘텐츠', other: '기타',
+  marketing: 'Marketing', advertising: 'Advertising', translation: 'Translation',
+  interpreting: 'Interpreting', content: 'Content', other: 'Other',
 };
 const workplaceNames = {
-  remote: '원격', onsite: '출근', hybrid: '하이브리드', unknown: '근무방식 미확인',
+  remote: 'Remote', onsite: 'On-site', hybrid: 'Hybrid', unknown: 'Work mode unknown',
 };
 const regionNames = {
-  nearby: '전주·완주권', expanded: '근교·통근 확인',
-  relocation: '타지역·이사/원격협의 필요', unknown: '위치 미확인',
+  nearby: 'Jeonju / Wanju', expanded: 'Nearby · Check commute',
+  relocation: 'Other region · Relocation / Remote negotiation', unknown: 'Location unknown',
 };
 const provincePatterns = [
   ['서울', /서울|seoul/i], ['부산', /부산|busan/i], ['대구', /대구|daegu/i],
@@ -31,22 +32,76 @@ const provincePatterns = [
 ];
 const nearbyPattern = /전주|완주|jeonju|wanju/i;
 const expandedPattern = /익산|김제|군산|정읍|임실|진안|남원|iksan|gimje|gunsan|jeongeup|imsil|jinan|namwon/i;
-const sourceStatusNames = { ok: '정상', partial: '일부 성공', error: '오류', manual: '수동 확인', unavailable: '수집 불가', not_configured: '미설정' };
+const sourceStatusNames = { ok: 'Collected', partial: 'Partial', error: 'Error', manual: 'Manual check', unavailable: 'Unavailable', not_configured: 'Not configured' };
 const sourceKindNames = {
-  official: '공식 채용', official_ats: '기업 공식 채용시스템', official_government: '정부 공식 채용',
-  public_api: '공공 API', employer: '기업 원문', aggregator: '공고 모음', manual: '직접 추가 · 미검증', platform: '플랫폼',
+  official: 'Official job board', official_ats: 'Employer application system', official_government: 'Government job board',
+  public_api: 'Public API', employer: 'Employer listing', aggregator: 'Job aggregator', manual: 'Manually added · Unverified', platform: 'Platform',
 };
 
 const $ = (id) => document.getElementById(id);
 const state = {
   activeTab: 'online', loaded: false, loading: false, loadError: '',
   jobs: [], remoteJobs: [], manualJobs: readManualJobs(), updatedAt: null, sourceStatus: [],
-  saved: readWatchlist(),
+  saved: readWatchlist(), hidden: readHidden(),
   filters: {
     online: { query: '', category: 'all', archive: 'all', languageFit: 'all', savedOnly: false, limit: PAGE_SIZE },
     offline: { query: '', category: 'all', province: 'all', region: 'all', archive: 'all', languageFit: 'all', savedOnly: false, limit: PAGE_SIZE },
   },
 };
+
+function canonical(value) {
+  return clean(value).normalize('NFKC').replace(/\s+/g, ' ').toLocaleLowerCase('en-US');
+}
+
+function readHidden() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(HIDDEN_KEY) || '{}');
+    const parse = (key) => new Set(Array.isArray(stored?.[key])
+      ? stored[key].filter((value) => typeof value === 'string' && value.length > 0 && value.length <= 500).slice(0, 5000)
+      : []);
+    return { jobs: parse('jobs'), companies: parse('companies'), sources: parse('sources') };
+  } catch { return { jobs: new Set(), companies: new Set(), sources: new Set() }; }
+}
+
+function persistHidden() {
+  try {
+    localStorage.setItem(HIDDEN_KEY, JSON.stringify({
+      jobs: [...state.hidden.jobs], companies: [...state.hidden.companies], sources: [...state.hidden.sources],
+    }));
+  } catch {
+    showMessage('Hidden items could not be saved in this browser. They may reappear when the page closes.', 'warning');
+  }
+}
+
+function sourceForManualUrl(rawUrl) {
+  try {
+    const hostname = new URL(rawUrl).hostname.toLowerCase();
+    if (hostname === 'upwork.com' || hostname.endsWith('.upwork.com')) return 'Upwork';
+    if (hostname === 'kowork.kr' || hostname.endsWith('.kowork.kr')
+      || hostname === 'kowork.co.kr' || hostname.endsWith('.kowork.co.kr')) return 'KOWORK';
+    if (hostname === 'proz.com' || hostname.endsWith('.proz.com')) return 'ProZ';
+    if (hostname === 'workana.com' || hostname.endsWith('.workana.com')) return 'Workana';
+    return hostname.replace(/^www\./, '');
+  } catch { /* URL is validated separately. */ }
+  return 'Manual entry';
+}
+
+function isHidden(job) {
+  return state.hidden.jobs.has(job.id)
+    || (job.companyKnown && state.hidden.companies.has(canonical(job.company)))
+    || state.hidden.sources.has(canonical(job.source));
+}
+
+function hideItem(kind, value) {
+  state.hidden[kind].add(kind === 'jobs' ? value : canonical(value));
+  persistHidden(); render();
+  $('hidden-manager').open = true;
+}
+
+function restoreItem(kind, value) {
+  state.hidden[kind].delete(value);
+  persistHidden(); render();
+}
 
 function readWatchlist() {
   try {
@@ -72,14 +127,14 @@ function readManualJobs() {
 function persistManualJobs() {
   try { localStorage.setItem(MANUAL_KEY, JSON.stringify(state.manualJobs)); return true; }
   catch {
-    showMessage('직접 추가한 공고를 브라우저에 영구 저장할 수 없습니다. 이 페이지를 닫으면 사라질 수 있습니다.', 'warning');
+    showMessage('Manual jobs could not be saved in this browser. They may disappear when the page closes.', 'warning');
     return false;
   }
 }
 
 function saveWatchlist() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...state.saved])); }
-  catch { showMessage('현재 브라우저에서 관심 공고를 영구 저장할 수 없습니다. 이 페이지를 닫으면 저장 상태가 사라질 수 있습니다.', 'warning'); }
+  catch { showMessage('Saved jobs could not be stored in this browser. Your bookmarks may disappear when the page closes.', 'warning'); }
 }
 
 function clean(value) {
@@ -91,6 +146,25 @@ function clean(value) {
 function cleanList(value) {
   if (Array.isArray(value)) return value.map(clean).filter(Boolean).join(' · ');
   return clean(value);
+}
+
+function englishStatus(value, fallback) {
+  const text = clean(value);
+  return /[가-힣]/.test(text) ? fallback : text || fallback;
+}
+
+function displayLanguages(value) {
+  const labels = { '한국어': 'Korean', '영어': 'English', '스페인어': 'Spanish', '독일어': 'German',
+    '일본어': 'Japanese', '중국어': 'Chinese', '프랑스어': 'French', '포르투갈어': 'Portuguese' };
+  return clean(value).split(' · ').map((entry) => labels[entry.trim()] || englishStatus(entry, 'See original listing')).join(' · ');
+}
+
+function sourceDetail(value) {
+  const message = clean(value);
+  if (!/[가-힣]/.test(message)) return message;
+  if (/WORK24_AUTH_KEY/.test(message) && /미설정/.test(message)) return 'WORK24_AUTH_KEY is not configured';
+  if (/API|API_KEY|인증키|키 미설정/.test(message) && /미설정|누락|없음/.test(message)) return 'API credentials are not configured';
+  return 'Check the original source for further collection details';
 }
 
 function safeUrl(raw) {
@@ -113,11 +187,11 @@ function dateValue(raw) {
 function formatDate(raw, includeTime = false) {
   const value = clean(raw);
   const isoDay = dateValue(value);
-  if (!isoDay) return '미표기';
+  if (!isoDay) return 'Not listed';
   if (!includeTime || /^\d{4}-\d{2}-\d{2}$/.test(value)) return isoDay;
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return isoDay;
-  return new Intl.DateTimeFormat('ko-KR', {
+  return new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', hour12: false,
   }).format(date);
@@ -177,13 +251,14 @@ function resolveLocation(raw, location) {
 function eligibilityDisplay(value, explicitStatus, explicitDetail) {
   const object = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const status = clean(explicitStatus) || clean(object.status);
-  const label = status === 'possible' ? '지원 가능성 있음' : status === 'restricted' ? '지원 제약 확인' : '지원 조건 확인 필요';
+  const label = status === 'possible' ? 'Potentially eligible' : status === 'restricted' ? 'Restrictions noted' : 'Eligibility unverified';
   const detailObject = explicitDetail && typeof explicitDetail === 'object' && !Array.isArray(explicitDetail) ? explicitDetail : {};
   const detail = [
     clean(explicitDetail), clean(detailObject.reason), clean(detailObject.geoScope),
     clean(object.reason), clean(object.geoScope), typeof value === 'string' ? value.trim() : '',
   ].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' · ');
-  return { label, description: detail || '자격 조건은 원문 확인', kind: status === 'possible' ? 'possible' : status === 'restricted' ? 'restricted' : 'unknown' };
+  return { label, description: englishStatus(detail, 'Check residency, work authorization and other requirements in the original listing'),
+    kind: status === 'possible' ? 'possible' : status === 'restricted' ? 'restricted' : 'unknown' };
 }
 
 function liveInterpreting(job) {
@@ -202,15 +277,18 @@ function normalizeJob(raw, index) {
   const id = clean(raw.id) || `${source}:${url || `${title}:${index}`}`;
   const location = clean(raw.location);
   return {
-    id, market, title: title || '공고 제목 미확인', company: clean(raw.company) || '기업명 미확인',
-    source: source === '고용24' ? '고용노동부 고용24 제공' : source || '출처 미확인', sourceKind: clean(raw.sourceKind), url,
+    id, market, title: title || 'Job title unknown', company: clean(raw.company) || 'Company not specified',
+    companyKnown: !!clean(raw.company),
+    source: id.startsWith('manual:') ? sourceForManualUrl(url) : source || 'Source unknown',
+    sourceKind: clean(raw.sourceKind), url,
     description: clean(raw.description), location,
     workplaceMode: workplaceNames[clean(raw.workplaceMode)] ? clean(raw.workplaceMode) : 'unknown',
     category: categoryNames[clean(raw.category)] ? clean(raw.category) : 'other',
     postedAt: clean(raw.postedAt), deadline: clean(raw.deadline), pay: clean(raw.pay),
-    language: cleanList(raw.languageRequirements), eligibility: eligibilityDisplay(raw.eligibility, raw.eligibilityStatus, raw.eligibilityDetail),
+    language: displayLanguages(cleanList(raw.languageRequirements)), eligibility: eligibilityDisplay(raw.eligibility, raw.eligibilityStatus, raw.eligibilityDetail),
     languageFit: ['match', 'mismatch'].includes(clean(raw.languageFitStatus)) ? clean(raw.languageFitStatus) : 'unknown',
-    languageFitReason: clean(raw.languageFitReason),
+    languageFitReason: clean(raw.languageFitReason)
+      ? englishStatus(raw.languageFitReason, 'Check required languages in the original listing') : '',
     verifiedAt: clean(raw.verifiedAt), lastSeenAt: clean(raw.lastSeenAt), savedAt: clean(raw.savedAt),
     collectionState: clean(raw.collectionState) || 'unknown',
     archived: clean(raw.collectionState) === 'not_seen', manual: id.startsWith('manual:'),
@@ -256,24 +334,50 @@ function createCard(job) {
   chips.append(el('span', 'category-chip', categoryNames[job.category]));
   const age = daysSince(job.verifiedAt);
   if (age !== null) {
-    const label = age < 0 ? '미래 확인일' : age <= 3 ? '최근 확인' : age <= 7 ? '7일 내 확인' : '확인일 오래됨';
+    const label = age < 0 ? 'Future verification date' : age <= 3 ? 'Recently checked' : age <= 7 ? 'Checked within 7 days' : 'Last checked over 7 days ago';
     chips.append(el('span', `freshness-chip ${age > 7 ? 'is-old' : ''}`.trim(), label));
   } else {
-    chips.append(el('span', 'freshness-chip is-old', '확인일 미기재'));
+    chips.append(el('span', 'freshness-chip is-old', 'Check date unknown'));
   }
-  if (job.archived) chips.append(el('span', 'history-chip', '최근 수집에서 미확인 · 과거 기록'));
-  else if (job.collectionState === 'unverified' && !job.manual) chips.append(el('span', 'history-chip is-unverified', '수집 여부 미검증'));
-  if (job.manual) chips.append(el('span', 'history-chip is-manual', '직접 추가'));
-  if (job.languageFit === 'mismatch') chips.append(el('span', 'language-fit-chip is-mismatch', '요구 언어 불일치 · 확인 필요'));
-  else if (job.languageFit === 'match') chips.append(el('span', 'language-fit-chip is-match', '언어 요건 부합 가능'));
+  if (job.archived) chips.append(el('span', 'history-chip', 'Not in latest collection · Historical'));
+  else if (job.collectionState === 'unverified' && !job.manual) chips.append(el('span', 'history-chip is-unverified', 'Collection unverified'));
+  if (job.manual) chips.append(el('span', 'history-chip is-manual', 'Added manually'));
+  if (job.languageFit === 'mismatch') chips.append(el('span', 'language-fit-chip is-mismatch', 'Language mismatch · Check'));
+  else if (job.languageFit === 'match') chips.append(el('span', 'language-fit-chip is-match', 'Possible language match'));
   const saved = state.saved.has(job.id);
   const bookmark = el('button', `bookmark-button ${saved ? 'is-saved' : ''}`.trim());
   bookmark.type = 'button'; bookmark.dataset.saveId = job.id;
   bookmark.setAttribute('aria-pressed', String(saved));
-  bookmark.setAttribute('aria-label', `${job.title} 관심 공고 ${saved ? '저장 취소' : '저장'}`);
-  bookmark.append(svgIcon('bookmark'), el('span', '', saved ? '저장됨' : '관심 저장'));
+  bookmark.setAttribute('aria-label', `${saved ? 'Remove saved job' : 'Save job'}: ${job.title}`);
+  bookmark.append(svgIcon('bookmark'), el('span', '', saved ? 'Saved' : 'Save'));
   bookmark.addEventListener('click', () => toggleSaved(job.id));
-  header.append(chips, bookmark);
+  const actions = el('div', 'card-actions');
+  const hideMenu = el('details', 'hide-menu');
+  const toggle = el('summary', 'hide-toggle', '×');
+  toggle.setAttribute('aria-label', `Hide options for ${job.title}`);
+  toggle.setAttribute('title', 'Hide options');
+  const options = el('div', 'hide-options');
+  const hideButton = (kind, value, label) => {
+    const button = el('button', '', label);
+    button.type = 'button';
+    button.addEventListener('click', () => {
+      hideMenu.open = false;
+      hideItem(kind, value);
+      document.querySelector('#hidden-manager > summary')?.focus({ preventScroll: true });
+    });
+    options.append(button);
+  };
+  hideButton('jobs', job.id, 'Hide this job');
+  if (job.companyKnown) hideButton('companies', job.company, 'Hide this company');
+  if (job.source !== 'Source unknown') hideButton('sources', job.source, 'Hide this source/platform');
+  hideMenu.append(toggle, options);
+  hideMenu.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && hideMenu.open) {
+      hideMenu.open = false; toggle.focus(); event.stopPropagation();
+    }
+  });
+  actions.append(bookmark, hideMenu);
+  header.append(chips, actions);
 
   const heading = el('h4', 'job-title', job.title);
   const company = el('p', 'job-company', job.company);
@@ -284,24 +388,24 @@ function createCard(job) {
   badges.append(el('span', 'workplace-badge', workplaceNames[job.workplaceMode]));
 
   const location = el('div', 'location-line');
-  location.append(svgIcon('pin'), el('span', '', job.location || '위치 미기재'));
+  location.append(svgIcon('pin'), el('span', '', job.location || 'Location not listed'));
 
   const details = el('dl', 'job-details');
   details.append(
-    infoRow('출처', job.source),
-    infoRow('급여 / 보수', job.pay || '미표기'),
-    infoRow('게시일', formatDate(job.postedAt)),
-    infoRow('마감일', formatDate(job.deadline), dateValue(job.deadline) && dateValue(job.deadline) < todayInKorea() ? 'is-expired' : ''),
+    infoRow('Source', job.source),
+    infoRow('Pay / Compensation', job.pay || 'Not listed'),
+    infoRow('Posted', formatDate(job.postedAt)),
+    infoRow('Deadline', formatDate(job.deadline), dateValue(job.deadline) && dateValue(job.deadline) < todayInKorea() ? 'is-expired' : ''),
   );
   if (dateValue(job.deadline) && dateValue(job.deadline) < todayInKorea()) {
-    details.lastElementChild.querySelector('dd')?.append(' (마감일 경과)');
+    details.lastElementChild.querySelector('dd')?.append(' (Expired)');
   }
 
   const criteria = el('div', 'criteria');
   const eligibility = el('div', `eligibility eligibility-${job.eligibility.kind}`);
   eligibility.append(el('strong', '', job.eligibility.label), el('span', '', job.eligibility.description));
   const language = el('div', 'language');
-  language.append(el('strong', '', '언어 조건'), el('span', '', [job.language || '미확인', job.languageFitReason].filter(Boolean).join(' · ')));
+  language.append(el('strong', '', 'Language requirements'), el('span', '', [job.language || 'Unknown', job.languageFitReason].filter(Boolean).join(' · ')));
   criteria.append(eligibility, language);
 
   const description = el('div', 'description-block');
@@ -309,28 +413,28 @@ function createCard(job) {
     description.append(el('p', 'job-description', job.description));
     if (job.description.length > 200) {
       const expanded = el('details', 'description-more');
-      expanded.append(el('summary', '', '상세 설명 전체 보기'), el('p', '', job.description));
+      expanded.append(el('summary', '', 'Read full description'), el('p', '', job.description));
       description.append(expanded);
     }
   } else {
-    description.append(el('p', 'job-description is-empty', '업무 설명 미기재 · 원문에서 확인하세요.'));
+    description.append(el('p', 'job-description is-empty', 'No description provided · Check the original listing.'));
   }
 
   const footer = el('div', 'card-footer');
-  const source = el('span', 'source-kind', sourceKindNames[job.sourceKind] || job.sourceKind || '출처 유형 미확인');
+  const source = el('span', 'source-kind', sourceKindNames[job.sourceKind] || job.sourceKind || 'Source type unknown');
   const stamp = el('span', 'verified-date', job.archived
-    ? `마지막 수집 확인 ${formatDate(job.lastSeenAt || job.verifiedAt)} · 현재 채용 여부 미확인`
-    : job.manual ? `직접 저장 ${formatDate(job.savedAt, true)} · 원문 미검증`
-      : `자료 확인 ${formatDate(job.verifiedAt)}`);
+    ? `Last collected ${formatDate(job.lastSeenAt || job.verifiedAt)} · Availability unverified`
+    : job.manual ? `Saved manually ${formatDate(job.savedAt, true)} · Original unverified`
+      : `Data checked ${formatDate(job.verifiedAt)}`);
   const meta = el('div', 'source-meta'); meta.append(source, stamp);
   footer.append(meta);
   if (job.url) {
-    const link = el('a', 'job-link', '공고 원문 보기');
+    const link = el('a', 'job-link', 'View original job');
     link.href = job.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
-    link.setAttribute('aria-label', `${job.title} 원문 새 창에서 열기`);
+    link.setAttribute('aria-label', `Open original listing in a new tab: ${job.title}`);
     link.append(svgIcon('arrow')); footer.append(link);
   } else {
-    footer.append(el('span', 'job-link is-disabled', '원문 링크 미확인'));
+    footer.append(el('span', 'job-link is-disabled', 'Original link unavailable'));
   }
   card.append(header, heading, company, badges, location, details, criteria, description, footer);
   return card;
@@ -352,7 +456,7 @@ function visibleJobs(tab) {
   const filters = state.filters[tab];
   const query = filters.query.trim().toLocaleLowerCase('ko-KR');
   return state.jobs.filter((job) => {
-    if (job.market !== tab || (tab === 'online' && liveInterpreting(job))) return false;
+    if (job.market !== tab || isHidden(job) || (tab === 'online' && liveInterpreting(job))) return false;
     if (filters.category !== 'all' && job.category !== filters.category) return false;
     if (filters.languageFit !== 'all' && job.languageFit !== filters.languageFit) return false;
     if (filters.archive === 'archived' && !job.archived) return false;
@@ -373,11 +477,11 @@ function visibleJobs(tab) {
 function emptyState(tab, anyInTab) {
   const wrapper = el('div', 'empty-state');
   const icon = el('div', 'empty-symbol', anyInTab ? '⌕' : '—');
-  const title = !state.loaded ? '공고를 불러오지 못했습니다' : anyInTab ? '조건에 맞는 공고가 없습니다' : '아직 수집된 공고가 없습니다';
-  const detail = !state.loaded ? '새로고침을 눌러 다시 시도하세요.' : anyInTab ? '검색어 또는 지역·분야 필터를 변경해 보세요.' : '출처별 수집 현황을 확인하거나 아래 플랫폼 링크에서 직접 검색하세요.';
+  const title = !state.loaded ? 'Could not load jobs' : anyInTab ? 'No jobs match your filters' : 'No jobs collected yet';
+  const detail = !state.loaded ? 'Select Refresh to try again.' : anyInTab ? 'Adjust the search or filters, or restore any hidden items.' : 'Check source collection status or explore the platform links below.';
   wrapper.append(icon, el('h4', '', title), el('p', '', detail));
   if (anyInTab) {
-    const reset = el('button', 'reset-button', '필터 초기화');
+    const reset = el('button', 'reset-button', 'Reset filters');
     reset.type = 'button'; reset.addEventListener('click', () => resetFilters(tab));
     wrapper.append(reset);
   }
@@ -387,7 +491,7 @@ function emptyState(tab, anyInTab) {
 function renderJobs(tab) {
   const list = $(`list-${tab}`);
   const filtered = visibleJobs(tab);
-  const count = state.jobs.filter((job) => job.market === tab && (tab !== 'online' || !liveInterpreting(job))).length;
+  const count = state.jobs.filter((job) => job.market === tab && !isHidden(job) && (tab !== 'online' || !liveInterpreting(job))).length;
   const limit = state.filters[tab].limit;
   const shown = filtered.slice(0, limit);
   const fragment = document.createDocumentFragment();
@@ -396,11 +500,44 @@ function renderJobs(tab) {
   list.replaceChildren(fragment);
   $(`tab-count-${tab}`).textContent = numberFormatter.format(count);
   $(`count-${tab}`).textContent = state.loaded
-    ? `전체 ${numberFormatter.format(count)}건 중 ${numberFormatter.format(filtered.length)}건${filtered.length > limit ? ` · ${numberFormatter.format(shown.length)}건 표시` : ''}`
-    : '공고를 불러오지 못했습니다.';
+    ? `${numberFormatter.format(filtered.length)} of ${numberFormatter.format(count)} jobs${filtered.length > limit ? ` · Showing ${numberFormatter.format(shown.length)}` : ''}`
+    : 'Could not load jobs.';
   const more = $(`more-${tab}`);
   more.hidden = filtered.length <= limit;
-  if (!more.hidden) more.textContent = `공고 ${numberFormatter.format(Math.min(PAGE_SIZE, filtered.length - limit))}건 더 보기`;
+  if (!more.hidden) more.textContent = `Show ${numberFormatter.format(Math.min(PAGE_SIZE, filtered.length - limit))} more jobs`;
+}
+
+function renderHidden() {
+  const list = $('hidden-list');
+  const fragment = document.createDocumentFragment();
+  const kinds = [
+    ['jobs', 'Job'], ['companies', 'Company'], ['sources', 'Source / Platform'],
+  ];
+  let count = 0;
+  kinds.forEach(([kind, label]) => {
+    [...state.hidden[kind]].sort((a, b) => a.localeCompare(b)).forEach((value) => {
+      count += 1;
+      const found = state.jobs.find((job) => kind === 'jobs' ? job.id === value
+        : kind === 'companies' ? canonical(job.company) === value : canonical(job.source) === value);
+      const display = kind === 'jobs' ? found?.title || value
+        : kind === 'companies' ? found?.company || value : found?.source || value;
+      const row = el('div', 'hidden-row');
+      const summary = el('div', 'hidden-row-label');
+      summary.append(el('small', '', label), el('strong', '', display));
+      const restore = el('button', 'restore-button', 'Restore');
+      restore.type = 'button';
+      restore.setAttribute('aria-label', `Restore hidden ${label.toLowerCase()}: ${display}`);
+      restore.addEventListener('click', () => {
+        restoreItem(kind, value);
+        document.querySelector('#hidden-manager > summary')?.focus({ preventScroll: true });
+      });
+      row.append(summary, restore); fragment.append(row);
+    });
+  });
+  if (!count) fragment.append(el('p', 'hidden-empty', 'No hidden jobs, companies or sources.'));
+  list.replaceChildren(fragment);
+  $('hidden-count').textContent = `${numberFormatter.format(count)} hidden`;
+  $('restore-all').hidden = count === 0;
 }
 
 function renderSources() {
@@ -408,25 +545,25 @@ function renderSources() {
   const fragment = document.createDocumentFragment();
   const rows = state.sourceStatus;
   if (!rows.length) {
-    fragment.append(el('li', 'source-empty', '출처별 상태 정보가 제공되지 않았습니다.'));
+    fragment.append(el('li', 'source-empty', 'No source status information available.'));
   }
   rows.forEach((raw) => {
     if (!raw || typeof raw !== 'object') return;
     const status = clean(raw.status);
     const item = el('li', 'source-row');
     const line = el('div', 'source-row-main');
-    const name = el('strong', '', clean(raw.source) || '출처 미확인');
-    const statusLabel = el('span', `source-state source-${sourceStatusNames[status] ? status : 'unknown'}`, sourceStatusNames[status] || '미확인');
+    const name = el('strong', '', clean(raw.source) || 'Source unknown');
+    const statusLabel = el('span', `source-state source-${sourceStatusNames[status] ? status : 'unknown'}`, sourceStatusNames[status] || 'Unknown');
     line.append(name, statusLabel);
     const info = el('p', 'source-row-sub', [
-      Number.isSafeInteger(raw.count) && raw.count >= 0 ? `${numberFormatter.format(raw.count)}건` : '',
-      `확인 ${formatDate(raw.checkedAt, true)}`,
-      clean(raw.message) || clean(raw.detail),
+      Number.isSafeInteger(raw.count) && raw.count >= 0 ? `${numberFormatter.format(raw.count)} jobs` : '',
+      `Checked ${formatDate(raw.checkedAt, true)}`,
+      sourceDetail(raw.message || raw.detail),
     ].filter(Boolean).join(' · '));
     item.append(line, info);
     const url = safeUrl(raw.url);
     if (url) {
-      const link = el('a', 'source-url', '출처 사이트 열기 ↗');
+      const link = el('a', 'source-url', 'Open source website ↗');
       link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer';
       item.append(link);
     }
@@ -435,30 +572,30 @@ function renderSources() {
   list.replaceChildren(fragment);
   const normal = rows.filter((r) => r?.status === 'ok').length;
   const other = rows.length - normal;
-  $('source-summary').textContent = rows.length ? `정상 ${normal} · 기타 ${other}` : '상태 정보 없음';
+  $('source-summary').textContent = rows.length ? `Collected ${normal} · Other ${other}` : 'No status data';
 }
 
 function renderManualJobs() {
   const list = $('manual-saved-list');
   const fragment = document.createDocumentFragment();
-  $('manual-count').textContent = `저장 ${numberFormatter.format(state.manualJobs.length)}건`;
+  $('manual-count').textContent = `${numberFormatter.format(state.manualJobs.length)} saved`;
   if (!state.manualJobs.length) {
-    fragment.append(el('p', 'manual-empty', '직접 추가한 공고가 아직 없습니다.'));
+    fragment.append(el('p', 'manual-empty', 'No manually added jobs yet.'));
   }
   state.manualJobs.forEach((job) => {
     const row = el('div', 'manual-saved-row');
     const info = el('div', 'manual-saved-info');
     const a = el('a', '', clean(job.title));
     a.href = safeUrl(job.url); a.target = '_blank'; a.rel = 'noopener noreferrer';
-    info.append(a, el('small', '', `${job.market === 'online' ? '온라인' : '오프라인'} · ${clean(job.company) || '회사명 미확인'}`));
-    const remove = el('button', 'manual-remove', '삭제');
-    remove.type = 'button'; remove.setAttribute('aria-label', `${clean(job.title)} 직접 추가 기록 삭제`);
+    info.append(a, el('small', '', `${job.market === 'online' ? 'Online' : 'In-person'} · ${clean(job.company) || 'Company not specified'}${isHidden(normalizeJob(job)) ? ' · Hidden from results' : ''}`));
+    const remove = el('button', 'manual-remove', 'Delete');
+    remove.type = 'button'; remove.setAttribute('aria-label', `Delete manually added job: ${clean(job.title)}`);
     remove.addEventListener('click', () => {
-      if (!window.confirm(`'${clean(job.title)}' 공고를 직접 추가 목록에서 삭제하시겠습니까?`)) return;
+      if (!window.confirm(`Delete "${clean(job.title)}" from your manually added jobs?`)) return;
       state.manualJobs = state.manualJobs.filter((record) => record.id !== job.id);
       state.saved.delete(job.id);
       persistManualJobs(); saveWatchlist(); rebuildJobs(); render();
-      $('manual-feedback').textContent = '직접 추가한 공고를 삭제했습니다.';
+      $('manual-feedback').textContent = 'Manual job deleted.';
     });
     row.append(info, remove); fragment.append(row);
   });
@@ -477,20 +614,20 @@ function addManualJob(event) {
   const location = $('manual-location').value.trim();
   const description = $('manual-description').value.trim();
   const reject = (message) => { feedback.classList.add('is-error'); feedback.textContent = message; };
-  if (!title || !url) { reject('공고 제목과 유효한 http(s) URL을 입력해 주세요.'); return; }
+  if (!title || !url) { reject('Enter a job title and a valid http(s) URL.'); return; }
   if (market === 'online' && liveInterpreting({ category, title, description })) {
-    reject('실시간 통역 공고는 온라인 목록에서 제외합니다. 직무를 다시 확인해 주세요.'); return;
+    reject('Live interpreting jobs are excluded from online listings. Check the job category.'); return;
   }
-  if (state.manualJobs.length >= 250) { reject('직접 저장은 최대 250건까지 가능합니다.'); return; }
+  if (state.manualJobs.length >= 250) { reject('You can save up to 250 manual jobs.'); return; }
   if (state.manualJobs.some((job) => safeUrl(job.url) === url)) {
-    reject('이미 직접 저장한 공고 URL입니다.'); return;
+    reject('This job URL is already saved manually.'); return;
   }
   const unique = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const record = {
     id: `manual:${unique}`, title, url, company, market, category, location, description,
-    source: '직접 추가(Upwork 등)', sourceKind: 'manual', workplaceMode: market === 'online' ? 'unknown' : 'unknown',
+    source: sourceForManualUrl(url), sourceKind: 'manual', workplaceMode: 'unknown',
     postedAt: '', deadline: '', verifiedAt: '', pay: '', languageRequirements: [],
-    eligibilityStatus: 'unknown', eligibilityDetail: '직접 저장한 링크로, 자격 정보는 원문에서 확인해야 합니다.',
+    eligibilityStatus: 'unknown', eligibilityDetail: 'Manually added: check eligibility on the original listing.',
     collectionState: 'seen', savedAt: new Date().toISOString(),
   };
   state.manualJobs.unshift(record);
@@ -499,8 +636,8 @@ function addManualJob(event) {
   saveWatchlist(); rebuildJobs(); render();
   $('manual-form').reset();
   feedback.textContent = stored
-    ? `${market === 'online' ? '온라인' : '오프라인'} 목록에 관심 공고를 저장했습니다. 해당 탭에서 확인하세요.`
-    : '현재 화면에는 추가했지만 브라우저에 영구 저장하지 못했습니다.';
+    ? `Job saved to your ${market === 'online' ? 'Online' : 'In-person'} list. Open that tab to view it.`
+    : 'Job added for this session, but browser storage is unavailable.';
 }
 
 function showMessage(text, kind = 'info') {
@@ -509,34 +646,34 @@ function showMessage(text, kind = 'info') {
 }
 
 function render() {
-  $('feed-date').textContent = state.loaded ? `데이터 갱신 ${formatDate(state.updatedAt, true)}` : '공고 데이터 미확인';
+  $('feed-date').textContent = state.loaded ? `Feed updated ${formatDate(state.updatedAt, true)}` : 'Feed status unknown';
   renderJobs('online'); renderJobs('offline'); renderSources();
-  renderManualJobs();
+  renderManualJobs(); renderHidden();
 }
 
 async function loadFeed() {
   if (state.loading) return;
   state.loading = true; $('refresh-button').disabled = true;
-  if (!state.loaded) showMessage('공고 데이터를 확인하고 있습니다.', 'info');
+  if (!state.loaded) showMessage('Loading job listings…', 'info');
   try {
     const response = await fetch(FEED_URL, { cache: 'no-store' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const feed = await response.json();
-    if (!feed || !Array.isArray(feed.jobs) || !Array.isArray(feed.sourceStatus)) throw new Error('데이터 형식이 올바르지 않습니다.');
+    if (!feed || !Array.isArray(feed.jobs) || !Array.isArray(feed.sourceStatus)) throw new Error('Invalid feed format.');
     state.remoteJobs = feed.jobs.map(normalizeJob).filter(Boolean);
     rebuildJobs();
     state.updatedAt = clean(feed.updatedAt);
     state.sourceStatus = feed.sourceStatus;
     state.loaded = true; state.loadError = '';
     const problems = state.sourceStatus.filter((row) => ['error', 'unavailable', 'partial', 'not_configured'].includes(row?.status));
-    if (problems.length) showMessage(`일부 출처(${problems.length}곳)의 수집이 불완전하거나 설정되지 않았습니다. 출처 현황에서 확인하세요.`, 'warning');
-    else if (!state.updatedAt) showMessage('데이터 업데이트 시점이 미확인되었습니다. 공고 원문에서 최신 상태를 확인하세요.', 'warning');
+    if (problems.length) showMessage(`Collection is incomplete or unavailable for ${problems.length} source(s). See source status below.`, 'warning');
+    else if (!state.updatedAt) showMessage('Feed update time is unknown. Check original listings for current availability.', 'warning');
     else showMessage('', 'info');
   } catch (error) {
-    state.loadError = error instanceof Error ? error.message : '알 수 없는 오류';
+    state.loadError = error instanceof Error ? error.message : 'Unknown error';
     showMessage(state.loaded
-      ? `새 공고를 불러오지 못했습니다. 이전 데이터를 표시합니다. (${state.loadError})`
-      : `공고 파일을 불러오지 못했습니다. 서버의 jobs.json 배포 상태를 확인하세요. (${state.loadError})`, 'error');
+      ? `Could not refresh jobs. Showing previously loaded data. (${state.loadError})`
+      : `Could not load job listings. Check whether jobs.json is deployed on the server. (${state.loadError})`, 'error');
   } finally {
     state.loading = false; $('refresh-button').disabled = false; render();
   }
@@ -628,6 +765,16 @@ function setupListeners() {
   });
   $('refresh-button').addEventListener('click', loadFeed);
   $('manual-form').addEventListener('submit', addManualJob);
+  $('restore-all').addEventListener('click', () => {
+    state.hidden = { jobs: new Set(), companies: new Set(), sources: new Set() };
+    persistHidden(); render();
+    document.querySelector('#hidden-manager > summary')?.focus({ preventScroll: true });
+  });
+  document.addEventListener('click', (event) => {
+    document.querySelectorAll('.hide-menu[open]').forEach((menu) => {
+      if (!menu.contains(event.target)) menu.open = false;
+    });
+  });
 }
 
 setupListeners();

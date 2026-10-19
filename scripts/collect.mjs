@@ -5,7 +5,7 @@ import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import {
-  assessEligibility, assessLanguageFit, classifyRole, dedupeJobs, extractLanguages, isoDate,
+  assessEligibility, assessLanguageFit, classifyRole, dedupeJobs, excludeOnlineJobReason, extractLanguages, isoDate,
   requiresPhysicalAttendance, safePublicUrl, safeText, stableId,
 } from './rules.mjs';
 
@@ -25,14 +25,21 @@ function recordStatus(source, status, count, checkedAt, detail = '', extras = {}
 }
 
 function commonJob({ source, providerId, url, title, company, description, location,
-  restriction, postedAt, deadline, pay, categories, now, homeCountry, languages }) {
+  restriction, postedAt, deadline, pay, categories, now, homeCountry, languages, onExcluded }) {
   const safeUrl = safePublicUrl(url);
   const cleanTitle = asText(title, 240);
   const cleanCompany = asText(company, 160);
   if (!safeUrl || !cleanTitle || !cleanCompany) return null;
   const category = classifyRole({ title: cleanTitle, description, categories });
   if (!category) return null;
-  const cleanDescription = asText(description, 1800);
+  const excludeReason = excludeOnlineJobReason({ source, title: cleanTitle, description, location, restriction, category },
+    { homeCountry, knownLanguages: languages });
+  if (excludeReason) {
+    onExcluded?.({ url: safeUrl, reason: excludeReason });
+    return null;
+  }
+  // The location constraint can appear near the *end* of a long job posting.
+  const cleanDescription = asText(description, 7000);
   const cleanLocation = asText(location, 240) || '위치 미표시';
   const eligibilityDetail = assessEligibility({
     market: 'online', location: restriction || cleanLocation, restriction, description,
@@ -185,12 +192,14 @@ async function collectOne(source, { fetchImpl, timeoutMs, now, homeCountry, lang
     ? [source.url, `${source.url}&industry=marketing`, `${source.url}&tag=spanish`, `${source.url}&tag=translation`]
     : [source.url];
   const collected = [];
+  const excludedUrls = new Set();
   const failures = [];
   let completed = 0;
   for (const url of requests) {
     try {
       const data = await fetchJson(url, { fetchImpl, timeoutMs });
-      collected.push(...normalize(data, { now, homeCountry, languages }));
+      collected.push(...normalize(data, { now, homeCountry, languages,
+        onExcluded: ({ url }) => excludedUrls.add(url) }));
       completed++;
     } catch (err) { failures.push(asText(err?.message || err, 150)); }
   }
@@ -198,7 +207,7 @@ async function collectOne(source, { fetchImpl, timeoutMs, now, homeCountry, lang
   const status = completed ? (failures.length ? 'partial' : 'ok') : 'error';
   const detail = `${completed}/${requests.length} 요청 완료. ${jobs.length}개 관련 공고. ${failures.length ? `오류: ${failures.join('; ')}` : '출처 공고 URL 원문 확인 필요'}`;
   return {
-    jobs, successfulRequests: completed,
+    jobs, excludedUrls: [...excludedUrls], successfulRequests: completed,
     sourceStatus: [recordStatus(source.name, status, jobs.length, now, detail,
       { url: source.url, ...(failures.length ? { failures } : {}) })],
   };
@@ -267,7 +276,10 @@ export async function buildFeed({ root = ROOT, fetchImpl = fetch, readFileImpl =
   sourceTasks.push(optionalKoreaAts({ enabled: collectors.koreaAts !== false, now, fetchImpl, koreaAtsCollector }));
   sourceTasks.push(optionalManual({ root, filename: profile.manualFile || 'config/manual-jobs.json', now, readFileImpl }));
   const results = await Promise.all(sourceTasks);
-  const jobs = dedupeJobs(results.flatMap((x) => x.jobs)).map((job) => ({
+  const jobs = dedupeJobs(results.flatMap((x) => x.jobs).filter((job) =>
+    job.sourceKind === 'manual' || !excludeOnlineJobReason(job, {
+      homeCountry: profile.homeCountry, knownLanguages: profile.spokenLanguages,
+    }))).map((job) => ({
     ...job,
     ...(job.languageFitStatus ? {} : assessLanguageFit(job, profile.spokenLanguages)),
   }));
@@ -280,7 +292,12 @@ export async function buildFeed({ root = ROOT, fetchImpl = fetch, readFileImpl =
   sourceStatus.push(recordStatus('Upwork', 'manual', 0, now,
     'Upwork 공개 RSS 자동 수집 기능이 중단되어 검색 결과를 생성하지 않습니다. 계정 로그인 후 수동 검색 링크를 이용하세요.',
     { url: 'https://www.upwork.com/nx/search/jobs/', manualSearches: upworkSearches }));
-  return { feed: { updatedAt: now, jobs, sourceStatus }, successfulRequests: results.reduce((n, x) => n + x.successfulRequests, 0),
+  sourceStatus.push(recordStatus('KOWORK', 'manual', 0, now,
+    'Official job platform for foreigners in Korea. Public pages restrict copying; use English source search and add verified URLs manually.',
+    { url: 'https://kowork.kr/en' }));
+  return { feed: { updatedAt: now, jobs, sourceStatus },
+    excludedUrls: results.flatMap((x) => x.excludedUrls || []),
+    successfulRequests: results.reduce((n, x) => n + x.successfulRequests, 0),
     manualCount: results.at(-1)?.jobs?.length || 0 };
 }
 
@@ -290,15 +307,18 @@ export async function buildFeed({ root = ROOT, fetchImpl = fetch, readFileImpl =
  * "not_seen" means absent from a complete refresh, not closed or ineligible.
  * "unverified" means the prior posting could not be checked (source error/disabled/partial).
  */
-export function mergeHistoricalFeed(incoming, previous, { retentionDays = 60, maxItems = 2000, knownLanguages } = {}) {
+export function mergeHistoricalFeed(incoming, previous, { retentionDays = 60, maxItems = 2000, knownLanguages, excludedUrls = [] } = {}) {
   const collectedAt = incoming.updatedAt;
   const fetchedAt = Date.parse(collectedAt);
   if (!Number.isFinite(fetchedAt)) throw new Error('수집 시각이 올바르지 않습니다.');
   const maxAgeMs = Math.max(1, Math.min(365, Number(retentionDays) || 60)) * 86400_000;
   const maxHistorical = Math.max(0, Math.min(10000, Number(maxItems) || 2000));
   const priorList = Array.isArray(previous?.jobs) ? previous.jobs : [];
+  const explicitlyExcludedUrls = new Set(excludedUrls.map((url) => safePublicUrl(url)).filter(Boolean));
   const priorById = new Map(priorList.filter((j) => j && typeof j.id === 'string').map((j) => [j.id, j]));
-  const current = incoming.jobs.map((job) => {
+  const eligibleIncoming = incoming.jobs.filter((job) => job.sourceKind === 'manual' ||
+    !excludeOnlineJobReason(job, { knownLanguages }));
+  const current = eligibleIncoming.map((job) => {
     const earlier = priorById.get(job.id);
     return {
       ...job,
@@ -312,10 +332,12 @@ export function mergeHistoricalFeed(incoming, previous, { retentionDays = 60, ma
   const currentUrl = new Set(current.map((x) => safePublicUrl(x.url)));
   const currentRole = new Set(current.map((x) => [x.company, x.title, x.location].map((v) => asText(v, 200).toLowerCase()).join('|')));
   const historical = priorList.flatMap((job) => {
-    if (!job || typeof job.id !== 'string' || seenIds.has(job.id) || !safePublicUrl(job.url)) return [];
+    if (!job || typeof job.id !== 'string' || seenIds.has(job.id) || !safePublicUrl(job.url) ||
+      explicitlyExcludedUrls.has(safePublicUrl(job.url))) return [];
     // Drop previously misclassified records when a newer, stricter quality gate proves the role requires physical attendance.
     if ((job.market === 'online' && job.category === 'interpreting') ||
         (job.source === 'Arbeitnow' && requiresPhysicalAttendance(job.description))) return [];
+    if (job.sourceKind !== 'manual' && excludeOnlineJobReason(job, { knownLanguages })) return [];
     const previousSeen = isoDate(job.lastSeenAt) || isoDate(job.verifiedAt) || isoDate(previous?.updatedAt);
     if (!previousSeen || fetchedAt - Date.parse(previousSeen) > maxAgeMs) return [];
     const url = safePublicUrl(job.url);
@@ -361,7 +383,7 @@ export async function writeFeedAtomic(feed, filename) {
 }
 
 export async function run({ root = ROOT, ...options } = {}) {
-  const { feed, successfulRequests, manualCount } = await buildFeed({ root, ...options });
+  const { feed, successfulRequests, manualCount, excludedUrls } = await buildFeed({ root, ...options });
   const filename = join(root, 'public/jobs.json');
   const existed = await stat(filename).then(() => true, () => false);
   if (existed && successfulRequests === 0 && manualCount === 0) {
@@ -373,6 +395,7 @@ export async function run({ root = ROOT, ...options } = {}) {
     retentionDays: profile.historyRetentionDays,
     maxItems: profile.historyMaxItems,
     knownLanguages: profile.spokenLanguages,
+    excludedUrls,
   });
   await writeFeedAtomic(merged, filename);
   return { written: true, message: `공고 ${merged.jobs.length}건(이번 발견 ${merged.jobs.filter((j) => j.collectionState === 'seen').length}건)을 ${filename}에 저장`, feed: merged };

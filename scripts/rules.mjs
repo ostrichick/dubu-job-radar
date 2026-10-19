@@ -34,6 +34,30 @@ const LANGUAGE_RULES = [
   { code: 'ru', name: 'Russian', re: /\brussian\b|러시아어/i },
   { code: 'it', name: 'Italian', re: /\bitalian\b|이탈리아어/i },
   { code: 'tr', name: 'Turkish', re: /\bturkish\b|튀르키예어|터키어/i },
+  { code: 'da', name: 'Danish', re: /\bdanish\b|덴마크어/i },
+  { code: 'sv', name: 'Swedish', re: /\bswedish\b|스웨덴어/i },
+  { code: 'no', name: 'Norwegian', re: /\bnorwegian\b|노르웨이어/i },
+  { code: 'fi', name: 'Finnish', re: /\bfinnish\b|핀란드어/i },
+  { code: 'nl', name: 'Dutch', re: /\bdutch\b|네덜란드어/i },
+  { code: 'pl', name: 'Polish', re: /\bpolish\b|폴란드어/i },
+  { code: 'el', name: 'Greek', re: /\bgreek\b|그리스어/i },
+  { code: 'cs', name: 'Czech', re: /\bczech\b|체코어/i },
+  { code: 'sk', name: 'Slovak', re: /\bslovak\b|슬로바키아어/i },
+  { code: 'hu', name: 'Hungarian', re: /\bhungarian\b|헝가리어/i },
+  { code: 'ro', name: 'Romanian', re: /\bromanian\b|루마니아어/i },
+  { code: 'bg', name: 'Bulgarian', re: /\bbulgarian\b|불가리아어/i },
+  { code: 'uk', name: 'Ukrainian', re: /\bukrainian\b|우크라이나어/i },
+  { code: 'sr', name: 'Serbian', re: /\bserbian\b|세르비아어/i },
+  { code: 'hr', name: 'Croatian', re: /\bcroatian\b|크로아티아어/i },
+  { code: 'lt', name: 'Lithuanian', re: /\blithuanian\b|리투아니아어/i },
+  { code: 'lv', name: 'Latvian', re: /\blatvian\b|라트비아어/i },
+  { code: 'et', name: 'Estonian', re: /\bestonian\b|에스토니아어/i },
+  { code: 'ms', name: 'Malay', re: /\bmalay\b|말레이어/i },
+  { code: 'tl', name: 'Filipino', re: /\b(?:filipino|tagalog)\b|타갈로그어|필리핀어/i },
+  { code: 'ur', name: 'Urdu', re: /\burdu\b|우르두어/i },
+  { code: 'bn', name: 'Bengali', re: /\bbengali\b|벵골어/i },
+  { code: 'ta', name: 'Tamil', re: /\btamil\b|타밀어/i },
+  { code: 'fa', name: 'Persian', re: /\b(?:persian|farsi)\b|페르시아어/i },
 ];
 
 export function stripHtml(value) {
@@ -153,6 +177,90 @@ const RESTRICTED_COUNTRIES = [
 ];
 
 const NON_KOREAN_RESIDENCY_RE = /\b(?:wohn(?:sitz|haft)|ans[aä]ssig|residen(?:t|ce)|based|located|resid(?:e|ing))\b.{0,90}\b(?:deutschland|[oö]sterreich|germany|austria|france|spain|united\s+states|canada|usa|uk|europa|europe)\b|\b(?:ausschlie[sß]lich|nur|only)\b.{0,100}\b(?:kandidat(?:en|innen|:innen)|bewerber(?:innen|:innen)?|applicants?|candidates?)\b.{0,100}\b(?:deutschland|[oö]sterreich|germany|austria|france|spain|usa|europe)\b|\b(?:residentes?|candidatos?)\b.{0,70}\b(?:espa[nñ]a|m[eé]xico|argentina)\b/i;
+
+const FOREIGN_RESIDENCE = '(?:latam|latin\\s+america|south\\s+america|mexico|mexico\\s+city|argentina|brazil|colombia|peru|germany|deutschland|austria|[oö]sterreich|france|spain|europe|eu|usa|united\\s+states|canada|united\\s+kingdom|uk|australia|new\\s+zealand)';
+const FOREIGN_RESIDENCE_RULES = [
+  new RegExp(`\\b(?:candidates?|applicants?|freelancers?|contractors?|employees?|talent|you|someone|somebody|person)\\b.{0,100}\\b(?:must\\s+)?(?:be\\s+)?(?:based|located|resid(?:e|ing))\\s+(?:in|within)\\s+(?:the\\s+)?${FOREIGN_RESIDENCE}\\b`, 'i'),
+  new RegExp(`\\b(?:we\\s+(?:need|seek|want|hire|are\\s+looking\\s+for)\\s+(?:a|an)?|(?:role|position|job)\\s+(?:is\\s+)?).{0,85}\\b(?:based|located|resid(?:e|ing))\\s+(?:in|within)\\s+(?:the\\s+)?${FOREIGN_RESIDENCE}\\b`, 'i'),
+  new RegExp(`\\b(?:must|need\\s+to|required\\s+to)\\s+(?:be\\s+)?(?:based|located|resid(?:e|ing))\\s+(?:in|within)\\s+(?:the\\s+)?${FOREIGN_RESIDENCE}\\b`, 'i'),
+  new RegExp(`\\b(?:based|located|residing)\\s+(?:in|within)\\s+(?:the\\s+)?${FOREIGN_RESIDENCE}\\s+(?:residents?|candidates?|applicants?)\\s+only\\b`, 'i'),
+];
+
+// Job location and target-market wording are different. These phrases state that
+// the WORKER must physically work within Europe, including French-language posts
+// that Arbeitnow marks as remote without exposing a machine-readable geo scope.
+const EUROPE_ONLY_REMOTE_RE = /(?:^|\s)(?:[àa]\s+distance|t[eé]l[eé]travail|remote|work\s+from\s+home)\b.{0,100}\b(?:depuis|uniquement\s+(?:depuis|en)|from|within)\s+(?:l['’]\s*|the\s+)?(?:europe|europa|european\s+economic\s+area|eea)\b/i;
+
+// An exclusion requires a clear demand, rather than mere mentions of target markets,
+// translations in marketing copy, or a language marked optional/preferred.
+function explicitlyRequiresLanguage(description, re) {
+  const body = safeText(description, 9000);
+  for (const match of body.matchAll(new RegExp(re.source, 'gi'))) {
+    const before = body.slice(Math.max(0, match.index - 85), match.index);
+    const after = body.slice(match.index + match[0].length, match.index + match[0].length + 85);
+    if (/\b(?:or|oder)\s*$/i.test(before) || /^\s*(?:or|oder)\b/i.test(after)) continue;
+    if (/^\s*(?:(?:is|would\s+be)\s+)?(?:not\s+required|optional|preferred|a\s+plus|an\s+advantage|nice\s+to\s+have)\b/i.test(after)) continue;
+    if (/\b(?:fluent|fluency\s+in|proficien(?:t|cy)\s+in|native(?:[- ]level)?|business[- ]level|must\s+speak|required:\s*|mandatory:\s*|excellent\s+(?:written\s+and\s+spoken\s+)?)\s*$/i.test(before)) return true;
+    if (/^\s*(?:is\s+)?(?:required|mandatory|essential|fluen(?:t|cy)|proficien(?:t|cy)|native[- ]level|c1\b|c2\b|skills?\s+required|kenntnisse\s+(?:erforderlich|auf)|auf\s+(?:verhandlungssicherem|c1|c2)|verhandlungssicher)/i.test(after)) return true;
+    if (/^\s*(?:language\s+)?(?:skills?|ability)\s+(?:are\s+)?(?:required|mandatory)\b/i.test(after)) return true;
+  }
+  return false;
+}
+
+function germanLanguagePosting(description) {
+  const text = safeText(description, 6500);
+  if (text.length < 180) return false;
+  const markers = [
+    /\b(?:wir|unser(?:e|en|em|er)?|unsere[nr]?)\b/i,
+    /\b(?:dich|dir|deine[msnr]?|du)\b/i,
+    /\b(?:aufgaben|anforderungen|kenntnisse|berufserfahrung)\b/i,
+    /\b(?:bewerbung|bewerben|bewerber|bewerberinnen)\b/i,
+    /\b(?:suchen|suchst|suchst|erwartest|erwartungen|bieten)\b/i,
+    /\b(?:und|mit|für|sowie|über)\b/i,
+  ];
+  return markers.filter((re) => re.test(text)).length >= 4;
+}
+
+/** Definitive automated exclusions; uncertain English/Korean skill stays undecided. */
+export function excludeOnlineJobReason({ source = '', market = 'online', title = '', description = '',
+  location = '', restriction = '', category = '' } = {},
+{ homeCountry = 'KR', knownLanguages = { es: 'native', en: 'unverified', ko: 'beginner' } } = {}) {
+  if (market === 'offline') return null;
+  const heading = safeText(title, 300);
+  const translationRole = category === 'translation' || /\b(?:translator|translation|linguist|locali[sz]ation|language\s+(?:quality|review|specialist))\b|번역|현지화/i.test(heading);
+  const supportedLanguages = knownLanguages && typeof knownLanguages === 'object' ? knownLanguages : { es: 'native', en: 'unverified', ko: 'beginner' };
+  for (const { code, re } of LANGUAGE_RULES) {
+    // Treat proficiency gaps (including Korean beginner or English unverified) as
+    // unknown; only a missing language is demonstrably outside the stated profile.
+    if (Object.hasOwn(supportedLanguages, code)) continue;
+    const titleMention = re.test(heading);
+    if (titleMention && (translationRole ||
+        /\b(?:speaking|speaker|fluency|native|bilingual|language)\b/i.test(heading))) {
+      // 'Spanish OR French translator' may accept Spanish: not a definitive exclusion.
+      if (!/\b(?:or|oder|또는)\b/i.test(heading)) return 'unsupported_required_language';
+    }
+    if (explicitlyRequiresLanguage(description, re)) return 'unsupported_required_language';
+  }
+  if (homeCountry !== 'KR') return null;
+  if (EUROPE_ONLY_REMOTE_RE.test(safeText(description, 9000))) return 'outside_supported_residence';
+  const employerOnlyLocation = source === 'Arbeitnow';
+  const eligibility = assessEligibility({
+    location: employerOnlyLocation ? '' : location,
+    restriction: employerOnlyLocation ? '' : restriction,
+    description, homeCountry,
+  });
+  if (eligibility.status === 'restricted') return 'outside_supported_residence';
+  if (FOREIGN_RESIDENCE_RULES.some((re) => re.test(safeText(description, 9000)))) return 'outside_supported_residence';
+  // Arbeitnow's 'remote' flag can mean remote *within Germany*. The city is HQ,
+  // so an English worldwide role should still survive.
+  if (employerOnlyLocation &&
+      /\b(?:berlin|hamburg|münchen|munich|germany|deutschland|frankfurt|austria|[oö]sterreich|wien|vienna)\b/i.test(location) &&
+      germanLanguagePosting(description) &&
+      !/\b(?:worldwide|anywhere|global\s+remote|work\s+from\s+anywhere|south\s+korea|republic\s+of\s+korea)\b|대한민국|한국/i.test(description)) {
+    return 'german_only_germany_job';
+  }
+  return null;
+}
 
 export function requiresPhysicalAttendance(description = '') {
   const text = safeText(description, 5500);

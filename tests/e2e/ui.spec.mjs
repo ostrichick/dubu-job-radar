@@ -39,7 +39,7 @@ test('online avoids live interpreting; offline includes nationwide and retains h
   await expect(page.locator('#list-offline .job-card')).toHaveCount(1);
   await expect(page.locator('#list-offline')).toContainText('서울 과거 공고');
   await page.locator('#source-drawer > summary').click();
-  await expect(page.locator('#source-list')).toContainText('WORK24_AUTH_KEY 미설정');
+  await expect(page.locator('#source-list')).toContainText('WORK24_AUTH_KEY is not configured');
   expect(errors).toEqual([]);
 });
 
@@ -54,6 +54,71 @@ test('manual Upwork lead appears immediately and survives reload', async ({ page
   await page.reload();
   await expect(page.locator('#list-online')).toContainText('Spanish content microproject');
   await expect(page.locator('#manual-count')).toContainText('1');
+});
+
+test('hiding a job persists and restoring brings the listing back', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#list-online .job-card')).toHaveCount(1);
+  await page.locator('#list-online .hide-toggle').click();
+  await page.getByRole('button', { name: 'Hide this job', exact: true }).click();
+  await expect(page.locator('#list-online .job-card')).toHaveCount(0);
+  await expect(page.locator('#hidden-count')).toHaveText('1 hidden');
+  await page.reload();
+  await expect(page.locator('#list-online .job-card')).toHaveCount(0);
+  await page.locator('#hidden-manager > summary').click();
+  await expect(page.locator('#hidden-list')).toContainText('Spanish social media strategist');
+  await page.getByRole('button', { name: /Restore hidden job/ }).click();
+  await expect(page.locator('#list-online .job-card')).toHaveCount(1);
+  await expect(page.locator('#hidden-count')).toHaveText('0 hidden');
+});
+
+test('company and source blocks work across tabs and the saved-only filter', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#list-online .bookmark-button').click();
+  await page.locator('#saved-online').check();
+  await page.locator('#list-online .hide-toggle').click();
+  await page.getByRole('button', { name: 'Hide this company', exact: true }).click();
+  await expect(page.locator('#list-online .job-card')).toHaveCount(0);
+  await page.locator('#tab-offline').click();
+  await expect(page.locator('#tab-count-offline')).toHaveText('0');
+  await expect(page.locator('#hidden-manager')).toHaveAttribute('open', '');
+  await page.getByRole('button', { name: /Restore hidden company/ }).click();
+  await expect(page.locator('#tab-count-offline')).toHaveText('4');
+  await page.locator('#tab-online').click();
+  await expect(page.locator('#list-online .job-card')).toHaveCount(1);
+  await page.locator('#list-online .hide-toggle').click();
+  await page.getByRole('button', { name: 'Hide this source/platform' }).click();
+  await expect(page.locator('#list-online .job-card')).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('#tab-count-online')).toHaveText('0');
+  await page.locator('#hidden-manager > summary').click();
+  await page.getByRole('button', { name: /Restore hidden source/ }).click();
+  await expect(page.locator('#tab-count-online')).toHaveText('1');
+});
+
+test('hiding Upwork hides only that manually saved platform and can be undone', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#manual-entry > summary').click();
+  const add = async (title, url) => {
+    await page.locator('#manual-title').fill(title);
+    await page.locator('#manual-url').fill(url);
+    await page.locator('#manual-form button[type=submit]').click();
+  };
+  await add('Upwork sample lead', 'https://www.upwork.com/jobs/~sample-only');
+  await add('Workana sample lead', 'https://www.workana.com/job/sample-only');
+  await expect(page.locator('#list-online .job-card')).toHaveCount(3);
+  const card = page.locator('#list-online .job-card').filter({ hasText: 'Upwork sample lead' });
+  await expect(card).toContainText('Upwork');
+  await card.locator('.hide-toggle').click();
+  await page.getByRole('button', { name: 'Hide this source/platform' }).click();
+  await expect(page.locator('#list-online')).not.toContainText('Upwork sample lead');
+  await expect(page.locator('#list-online')).toContainText('Workana sample lead');
+  await page.reload();
+  await expect(page.locator('#list-online')).not.toContainText('Upwork sample lead');
+  await page.locator('#hidden-manager > summary').click();
+  await page.getByRole('button', { name: /Restore hidden source/ }).click();
+  await expect(page.locator('#list-online')).toContainText('Upwork sample lead');
+  await expect(page.locator('#manual-count')).toContainText('2 saved');
 });
 
 test('narrow screen has no horizontal overflow', async ({ page }) => {

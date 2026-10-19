@@ -1,0 +1,74 @@
+name: Refresh Nicole jobs and deploy Pages
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - public/jobs.json
+  workflow_dispatch:
+  schedule:
+    # Respect Remotive's recommended maximum of four API refreshes per day.
+    - cron: '23 */6 * * *'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: nicole-job-radar-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      WORK24_AUTH_KEY: ${{ secrets.WORK24_AUTH_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run check
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - run: npm run refresh
+      - name: Validate generated feed
+        run: |
+          node --input-type=module -e "import {readFileSync} from 'node:fs';const f=JSON.parse(readFileSync('public/jobs.json','utf8'));if(!Array.isArray(f.jobs)||!Array.isArray(f.sourceStatus)||!f.updatedAt)process.exit(1)"
+      - name: Preserve historic feed for next scheduled refresh
+        shell: bash
+        run: |
+          git fetch origin main
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+            echo 'main changed while collecting; deploying current snapshot without persistence'
+            exit 0
+          fi
+          git add public/jobs.json
+          if git diff --cached --quiet -- public/jobs.json; then
+            echo 'No feed changes to persist'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Refresh Nicole jobs snapshot [skip ci]'
+          git push origin HEAD:main
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: public
+
+  deploy:
+    runs-on: ubuntu-24.04
+    needs: build
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
