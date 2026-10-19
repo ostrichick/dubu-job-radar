@@ -1,8 +1,9 @@
+import { createStateStorage } from './state-storage.js';
+import { feedHealth } from './feed-health.js';
+const storage = await createStateStorage();
+const initialState = storage.snapshot();
 const FEED_URL = './jobs.json';
 const PAGE_SIZE = 24;
-const STORAGE_KEY = 'nicole-job-radar:watchlist:v1';
-const MANUAL_KEY = 'nicole-job-radar:manual-jobs:v1';
-const HIDDEN_KEY = 'nicole-job-radar:hidden:v1';
 const numberFormatter = new Intl.NumberFormat('en-US');
 
 const categoryNames = {
@@ -42,8 +43,8 @@ const sourceKindNames = {
 const $ = (id) => document.getElementById(id);
 const state = {
   activeTab: 'online', loaded: false, loading: false, loadError: '',
-  jobs: [], remoteJobs: [], manualJobs: readManualJobs(), updatedAt: null, sourceStatus: [],
-  saved: readWatchlist(), hidden: readHidden(),
+  jobs: [], remoteJobs: [], manualJobs: initialState.manual, updatedAt: null, sourceStatus: [],
+  saved: new Set(initialState.saved), hidden: Object.fromEntries(Object.entries(initialState.hidden).map(([key, ids]) => [key, new Set(ids)])),
   filters: {
     online: { query: '', category: 'all', archive: 'all', languageFit: 'all', savedOnly: false, limit: PAGE_SIZE },
     offline: { query: '', category: 'all', province: 'all', region: 'all', archive: 'all', languageFit: 'all', savedOnly: false, limit: PAGE_SIZE },
@@ -54,24 +55,26 @@ function canonical(value) {
   return clean(value).normalize('NFKC').replace(/\s+/g, ' ').toLocaleLowerCase('en-US');
 }
 
-function readHidden() {
-  try {
-    const stored = JSON.parse(localStorage.getItem(HIDDEN_KEY) || '{}');
-    const parse = (key) => new Set(Array.isArray(stored?.[key])
-      ? stored[key].filter((value) => typeof value === 'string' && value.length > 0 && value.length <= 500).slice(0, 5000)
-      : []);
-    return { jobs: parse('jobs'), companies: parse('companies'), sources: parse('sources') };
-  } catch { return { jobs: new Set(), companies: new Set(), sources: new Set() }; }
+function applyStored(doc) {
+  state.saved = new Set(doc.saved);
+  state.manualJobs = doc.manual;
+  state.hidden = Object.fromEntries(Object.entries(doc.hidden).map(([key, ids]) => [key, new Set(ids)]));
+  rebuildJobs(); render();
 }
-
-function persistHidden() {
-  try {
-    localStorage.setItem(HIDDEN_KEY, JSON.stringify({
-      jobs: [...state.hidden.jobs], companies: [...state.hidden.companies], sources: [...state.hidden.sources],
-    }));
-  } catch {
-    showMessage('Hidden items could not be saved in this browser. They may reappear when the page closes.', 'warning');
-  }
+async function updateStored(action) {
+  try { await storage.update(action); return true; }
+  catch (error) { showMessage(`Changes were not saved: ${error.message}. Your previous state is preserved. Reload to retry.`, 'warning'); return false; }
+}
+async function migrateJobAliases() {
+  const jobs = state.remoteJobs.filter((job) => job.legacyIds.some((id) => state.saved.has(id) || state.hidden.jobs.has(id)));
+  if (!jobs.length || !storage.writable) return;
+  await updateStored((draft) => {
+    for (const job of jobs) for (const field of [draft.saved, draft.hidden.jobs]) {
+      if (!job.legacyIds.some((id) => field.includes(id))) continue;
+      const remaining = field.filter((id) => !job.legacyIds.includes(id));
+      remaining.push(job.id); field.splice(0, field.length, ...new Set(remaining));
+    }
+  });
 }
 
 function sourceForManualUrl(rawUrl) {
@@ -93,49 +96,13 @@ function isHidden(job) {
     || state.hidden.sources.has(canonical(job.source));
 }
 
-function hideItem(kind, value) {
-  state.hidden[kind].add(kind === 'jobs' ? value : canonical(value));
-  persistHidden(); render();
+async function hideItem(kind, value) {
+  if (!await updateStored((draft) => { const ids = new Set(draft.hidden[kind]); ids.add(kind === 'jobs' ? value : canonical(value)); draft.hidden[kind] = [...ids]; })) return;
   $('hidden-manager').open = true;
 }
 
-function restoreItem(kind, value) {
-  state.hidden[kind].delete(value);
-  persistHidden(); render();
-}
-
-function readWatchlist() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    return new Set(Array.isArray(raw) ? raw.filter((id) => typeof id === 'string' && id.length <= 500).slice(0, 5000) : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function readManualJobs() {
-  try {
-    const records = JSON.parse(localStorage.getItem(MANUAL_KEY) || '[]');
-    if (!Array.isArray(records)) return [];
-    return records.slice(0, 250).filter((row) => row && typeof row === 'object'
-      && typeof row.id === 'string' && row.id.startsWith('manual:')
-      && typeof row.title === 'string' && row.title.length > 0
-      && typeof row.url === 'string' && safeUrl(row.url)
-      && (row.market === 'online' || row.market === 'offline'));
-  } catch { return []; }
-}
-
-function persistManualJobs() {
-  try { localStorage.setItem(MANUAL_KEY, JSON.stringify(state.manualJobs)); return true; }
-  catch {
-    showMessage('Manual jobs could not be saved in this browser. They may disappear when the page closes.', 'warning');
-    return false;
-  }
-}
-
-function saveWatchlist() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...state.saved])); }
-  catch { showMessage('Saved jobs could not be stored in this browser. Your bookmarks may disappear when the page closes.', 'warning'); }
+async function restoreItem(kind, value) {
+  await updateStored((draft) => { draft.hidden[kind] = draft.hidden[kind].filter((id) => id !== value); });
 }
 
 function clean(value) {
@@ -278,6 +245,7 @@ function normalizeJob(raw, index) {
   const id = clean(raw.id) || `${source}:${url || `${title}:${index}`}`;
   const location = clean(raw.location);
   return {
+    legacyIds: Array.isArray(raw.legacyIds) ? raw.legacyIds.filter((id) => typeof id === 'string') : [],
     id, market, title: title || 'Job title unknown', company: clean(raw.company) || 'Company not specified',
     companyKnown: !!clean(raw.company),
     source: id.startsWith('manual:') ? sourceForManualUrl(url) : source || 'Source unknown',
@@ -456,10 +424,9 @@ function createCard(job) {
   return card;
 }
 
-function toggleSaved(id) {
-  if (state.saved.has(id)) state.saved.delete(id);
-  else state.saved.add(id);
-  saveWatchlist();
+async function toggleSaved(id) {
+  const wanted = !state.saved.has(id);
+  if (!await updateStored((draft) => { const ids = new Set(draft.saved); wanted ? ids.add(id) : ids.delete(id); draft.saved = [...ids]; })) return;
   const activeButton = [...document.querySelectorAll('.bookmark-button')].find((button) => button.dataset.saveId === id);
   const focusedId = activeButton?.dataset.saveId;
   renderJobs(state.activeTab);
@@ -606,11 +573,9 @@ function renderManualJobs() {
     info.append(a, el('small', '', `${job.market === 'online' ? 'Online' : 'In-person'} · ${clean(job.company) || 'Company not specified'}${isHidden(normalizeJob(job)) ? ' · Hidden from results' : ''}`));
     const remove = el('button', 'manual-remove', 'Delete');
     remove.type = 'button'; remove.setAttribute('aria-label', `Delete manually added job: ${clean(job.title)}`);
-    remove.addEventListener('click', () => {
+    remove.addEventListener('click', async () => {
       if (!window.confirm(`Delete "${clean(job.title)}" from your manually added jobs?`)) return;
-      state.manualJobs = state.manualJobs.filter((record) => record.id !== job.id);
-      state.saved.delete(job.id);
-      persistManualJobs(); saveWatchlist(); rebuildJobs(); render();
+      if (!await updateStored((draft) => { draft.manual = draft.manual.filter((record) => record.id !== job.id); draft.saved = draft.saved.filter((id) => id !== job.id); })) return;
       $('manual-feedback').textContent = 'Manual job deleted.';
     });
     row.append(info, remove); fragment.append(row);
@@ -618,8 +583,10 @@ function renderManualJobs() {
   list.replaceChildren(fragment);
 }
 
-function addManualJob(event) {
+let manualSaving = false;
+async function addManualJob(event) {
   event.preventDefault();
+  if (manualSaving) return;
   const feedback = $('manual-feedback');
   feedback.classList.remove('is-error'); feedback.textContent = '';
   const title = $('manual-title').value.trim();
@@ -646,10 +613,16 @@ function addManualJob(event) {
     eligibilityStatus: 'unknown', eligibilityDetail: 'Manually added: check eligibility on the original listing.',
     collectionState: 'seen', savedAt: new Date().toISOString(),
   };
-  state.manualJobs.unshift(record);
-  state.saved.add(record.id);
-  const stored = persistManualJobs();
-  saveWatchlist(); rebuildJobs(); render();
+  manualSaving = true;
+  const formControls = [...$('manual-form').elements];
+  formControls.forEach((control) => { control.disabled = true; });
+  const stored = await updateStored((draft) => {
+    if (draft.manual.length >= 250 || draft.manual.some((job) => safeUrl(job.url) === url)) throw Error('Manual job limit reached or URL already saved');
+    draft.manual.unshift(record); draft.saved = [...new Set([...draft.saved, record.id])];
+  });
+  manualSaving = false;
+  formControls.forEach((control) => { control.disabled = !storage.writable; });
+  if (!stored) return;
   $('manual-form').reset();
   feedback.textContent = stored
     ? `Job saved to your ${market === 'online' ? 'Online' : 'In-person'} list. Open that tab to view it.`
@@ -665,6 +638,10 @@ function render() {
   $('feed-date').textContent = state.loaded ? `Feed updated ${formatDate(state.updatedAt, true)}` : 'Feed status unknown';
   renderJobs('online'); renderJobs('offline'); renderSources();
   renderManualJobs(); renderHidden();
+  if (!storage.writable) {
+    document.querySelectorAll('.bookmark-button,.hide-menu button,.manual-remove,#manual-form button[type=submit],#restore-all,#hidden-list button').forEach((button) => { button.disabled = true; });
+    showMessage(`Personal state is read-only: ${storage.error?.message || 'storage unavailable'}. Reload to retry.`, 'warning');
+  }
 }
 
 async function loadFeed() {
@@ -672,17 +649,19 @@ async function loadFeed() {
   state.loading = true; $('refresh-button').disabled = true;
   if (!state.loaded) showMessage('Loading job listings…', 'info');
   try {
-    const response = await fetch(FEED_URL, { cache: 'no-store' });
+    const response = await fetch(FEED_URL, { cache: 'no-store', signal: AbortSignal.timeout(15000) });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const feed = await response.json();
     if (!feed || !Array.isArray(feed.jobs) || !Array.isArray(feed.sourceStatus)) throw new Error('Invalid feed format.');
     state.remoteJobs = feed.jobs.map(normalizeJob).filter(Boolean);
+    await migrateJobAliases();
     rebuildJobs();
     state.updatedAt = clean(feed.updatedAt);
     state.sourceStatus = feed.sourceStatus;
     state.loaded = true; state.loadError = '';
     const problems = state.sourceStatus.filter((row) => ['error', 'unavailable', 'partial', 'not_configured'].includes(row?.status));
-    if (problems.length) showMessage(`Collection is incomplete or unavailable for ${problems.length} source(s). See source status below.`, 'warning');
+    if (!feedHealth(state.updatedAt).ok) showMessage(feedHealth(state.updatedAt).message, 'warning');
+    else if (problems.length) showMessage(`Collection is incomplete or unavailable for ${problems.length} source(s). See source status below.`, 'warning');
     else if (!state.updatedAt) showMessage('Feed update time is unknown. Check original listings for current availability.', 'warning');
     else showMessage('', 'info');
   } catch (error) {
@@ -781,9 +760,8 @@ function setupListeners() {
   });
   $('refresh-button').addEventListener('click', loadFeed);
   $('manual-form').addEventListener('submit', addManualJob);
-  $('restore-all').addEventListener('click', () => {
-    state.hidden = { jobs: new Set(), companies: new Set(), sources: new Set() };
-    persistHidden(); render();
+  $('restore-all').addEventListener('click', async () => {
+    if (!await updateStored((draft) => { draft.hidden = { jobs: [], companies: [], sources: [] }; })) return;
     document.querySelector('#hidden-manager > summary')?.focus({ preventScroll: true });
   });
   document.addEventListener('click', (event) => {
@@ -793,6 +771,7 @@ function setupListeners() {
   });
 }
 
+storage.subscribe(applyStored);
 setupListeners();
 rebuildJobs();
 render();

@@ -88,6 +88,8 @@ export function normalizeCuratedResearch(item, { now = new Date().toISOString(),
     : detectedFit;
   return {
     id: stableId('curated', url, url), url, title, company, source,
+    legacyIds: source === 'KOWORK' && /\/post\/(\d+)\/?$/.test(new URL(url).pathname)
+      ? [stableId('KOWORK', new URL(url).pathname.match(/\/post\/(\d+)\/?$/)[1], url)] : [],
     sourceKind: 'curated_research', researchMethod: 'reviewed_original_page',
     researchReviewedAt: reviewedAt,
     researchPriority: ['high', 'low'].includes(item.priority) ? item.priority : 'normal',

@@ -21,7 +21,95 @@ const feed = { updatedAt: '2026-10-19T01:00:00Z', sourceStatus, jobs: [
 ] };
 
 test.beforeEach(async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-10-19T12:00:00Z') });
   await page.route('**/jobs.json', (route) => route.fulfill({ json: feed }));
+});
+
+test('relative collection labels use an explicit clock at the 3-day and 7-day boundaries', async ({ page }) => {
+  await page.clock.setSystemTime(new Date('2026-10-23T12:00:00Z'));
+  await page.goto('/');
+  await expect(page.locator('#list-online .job-card').first()).toContainText('Added within 7 days');
+  await page.clock.setSystemTime(new Date('2026-10-27T12:00:00Z'));
+  await page.reload();
+  await expect(page.locator('#list-online .job-card').first()).toContainText('Added 8 days ago');
+  await expect(page.locator('#feed-message')).toContainText('over 24 hours');
+});
+
+test('two tabs preserve independent saves, explicit removal and concurrent manual additions', async ({ page, context }) => {
+  await page.unroute('**/jobs.json');
+  await context.route('**/jobs.json', (route) => route.fulfill({ json: { ...feed, jobs: [feed.jobs[0], { ...feed.jobs[0], id: 'fixture:second', title: 'Spanish Content Editor', url: 'https://example.org/second' }] } }));
+  const other = await context.newPage();
+  await Promise.all([page.goto('/'), other.goto('/')]);
+  await Promise.all([page.locator('.bookmark-button').first().click(), other.locator('.bookmark-button').nth(1).click()]);
+  for (const p of [page, other]) await expect(p.locator('.bookmark-button[aria-pressed=true]')).toHaveCount(2);
+  await other.locator('.bookmark-button').first().click();
+  await expect(page.locator('.bookmark-button[aria-pressed=true]')).toHaveCount(1);
+  const add = async (p, name) => {
+    await p.locator('#manual-entry > summary').click();
+    await p.locator('#manual-title').fill(name);
+    await p.locator('#manual-url').fill('https://example.org/' + name);
+    await p.locator('#manual-category').selectOption('content');
+    await p.locator('#manual-form button[type=submit]').click();
+  };
+  await Promise.all([add(page, 'First'), add(other, 'Second')]);
+  await expect(page.locator('#manual-count')).toContainText('2');
+  await expect(other.locator('#manual-count')).toContainText('2');
+  await page.reload();
+  await expect(page.locator('.bookmark-button[aria-pressed=true]')).toHaveCount(3);
+  await expect(page.locator('#manual-count')).toContainText('2');
+});
+
+test('storage notifications preserve two-tab hiding and restoration without BroadcastChannel', async ({ page, context }) => {
+  await context.addInitScript(() => { window.BroadcastChannel = undefined; });
+  await page.unroute('**/jobs.json');
+  await context.route('**/jobs.json', (route) => route.fulfill({ json: { ...feed, jobs: [feed.jobs[0], { ...feed.jobs[0], id: 'fixture:second', title: 'Spanish Content Editor', url: 'https://example.org/second' }] } }));
+  const other = await context.newPage();
+  await Promise.all([page.goto('/'), other.goto('/')]);
+  await Promise.all([page.locator('#list-online .hide-toggle').first().click(), other.locator('#list-online .hide-toggle').nth(1).click()]);
+  await Promise.all([page.getByRole('button', { name: 'Hide this job', exact: true }).click(), other.getByRole('button', { name: 'Hide this job', exact: true }).click()]);
+  for (const p of [page, other]) await expect(p.locator('#hidden-count')).toHaveText('2 hidden');
+  await page.getByRole('button', { name: /Restore hidden job.*social media/ }).click();
+  await expect(other.locator('#hidden-count')).toHaveText('1 hidden');
+  await other.getByRole('button', { name: /Restore hidden job.*Content Editor/ }).click();
+  await expect(page.locator('#hidden-count')).toHaveText('0 hidden');
+  await page.reload();
+  await expect(page.locator('#list-online .job-card')).toHaveCount(2);
+});
+
+test('legacy state migrates once and source upgrades preserve saved and hidden IDs', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('nicole-job-radar:watchlist:v1', '["old-index"]');
+    localStorage.setItem('nicole-job-radar:hidden:v1', '{"jobs":["old-index"],"companies":[],"sources":[]}');
+  });
+  await page.route('**/jobs.json', (route) => route.fulfill({ json: { ...feed, jobs: [{ ...feed.jobs[0], id: 'curated:new', legacyIds: ['old-index'] }] } }));
+  await page.goto('/');
+  await expect(page.locator('#hidden-count')).toHaveText('1 hidden');
+  await page.locator('#hidden-manager > summary').click();
+  await page.getByRole('button', { name: /Restore hidden job/ }).click();
+  await expect(page.locator('.bookmark-button')).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('.bookmark-button').click();
+  await expect(page.locator('.bookmark-button')).toHaveAttribute('aria-pressed', 'false');
+  await page.reload();
+  await expect(page.locator('.bookmark-button')).toHaveAttribute('aria-pressed', 'false');
+  expect(await page.evaluate(() => localStorage.getItem('nicole-job-radar:watchlist:v1'))).toBe('["old-index"]');
+});
+
+test('failed state writes leave committed bookmarks unchanged', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#list-online .bookmark-button')).toHaveAttribute('aria-pressed', 'false');
+  await page.evaluate(() => { IDBObjectStore.prototype.put = function () { throw new DOMException('Quota exceeded', 'QuotaExceededError'); }; });
+  await page.locator('#list-online .bookmark-button').click();
+  await expect(page.locator('#feed-message')).toContainText('Changes were not saved');
+  await expect(page.locator('#list-online .bookmark-button')).toHaveAttribute('aria-pressed', 'false');
+  await page.reload();
+  await expect(page.locator('#list-online .bookmark-button')).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('unavailable IndexedDB still shows the feed and disables personal changes', async ({ page }) => {
+  await page.addInitScript(() => { indexedDB.open = () => { throw Error('Storage unavailable'); }; });
+  await page.goto('/');
+  await expect(page.locator('#list-online .bookmark-button')).toBeDisabled();
+  await expect(page.locator('#feed-message')).toContainText('read-only');
 });
 
 test('Dubu Job Radar is branded in English and foreign-friendly original-site links remain direct', async ({ page }) => {

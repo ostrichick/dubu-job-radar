@@ -5,6 +5,16 @@ import { normalizeAtsJob } from '../scripts/collect-korea-ats.mjs';
 import { parseWork24Xml } from '../scripts/collect-korea.mjs';
 import { mergeHistoricalFeed } from '../scripts/collect.mjs';
 
+test('preferred and explicitly optional Korean do not become mandatory qualifications', () => {
+  const job = { title: 'Spanish Content Marketer' };
+  for (const description of ['Native Spanish. Fluent Korean is a plus, but not required.', 'Preferred qualifications: business-level Korean.', '한국어 능통 우대, 필수 아님']) {
+    assert.equal(excludeQualificationReason({ ...job, description }), null, description);
+  }
+  for (const description of ['Fluent Korean required.', 'Business-level Korean is mandatory.', 'Fluent Korean preferred. However Korean C1 required.', 'English is optional, fluent Korean required.']) {
+    assert.equal(excludeQualificationReason({ ...job, description }), 'advanced_korean_required', description);
+  }
+});
+
 test('Korean-language specialist roles are excluded, not all Korea market jobs', () => {
   assert.equal(excludeQualificationReason({ title: '[Studio Support Div.] Korean Localization Specialist (1년 이상 / 계약직)' }), 'korean_language_professional');
   assert.equal(excludeQualificationReason({ title: 'Korean Translator / Linguist' }), 'korean_language_professional');

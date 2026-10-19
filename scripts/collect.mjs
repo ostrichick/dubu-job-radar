@@ -366,6 +366,7 @@ export function mergeHistoricalFeed(incoming, previous, { retentionDays = 60, ma
     const earlier = priorById.get(job.id) || priorByUrl.get(safePublicUrl(job.url));
     return {
       ...job,
+      legacyIds: [...new Set([...(job.legacyIds || []), ...(earlier?.legacyIds || []), earlier?.id].filter((id) => id && id !== job.id))],
       ...(job.languageFitStatus ? {} : assessLanguageFit(job, knownLanguages)),
       collectionState: 'seen', firstSeenAt: earlier ? (earlier.firstSeenAt || null) : collectedAt,
       lastSeenAt: collectedAt,

@@ -28,7 +28,10 @@ export function excludeQualificationReason({ title = '', description = '' } = {}
     return 'korean_language_professional';
   }
   const koreanHigh = /\b(?:native|near[- ]native|fluent|advanced|business[- ]level|professional[- ]level|excellent)\s+(?:spoken\s+|written\s+|oral\s+)?korean\b|\bkorean\b.{0,40}\b(?:native|near[- ]native|fluen(?:t|cy)|advanced|business[- ]level|professional[- ]level|c1|c2)\b|한국어.{0,20}(?:능통|원어민\s*수준|고급|상급|비즈니스\s*(?:수준|회화)|유창|5급|6급)|(?:비즈니스\s*한국어|한국어\s*원어민)/i;
-  if (koreanHigh.test(combined)) return 'advanced_korean_required';
+  // A role title is explicit. In the body, preference/negation applies only
+  // to its own clause; a later mandatory clause must still exclude the role.
+  if (koreanHigh.test(heading) || body.split(/[\n.;,]|\bbut\b|\bhowever\b/i).some((clause) =>
+    koreanHigh.test(clause) && !/\b(?:preferred|optional|a plus|nice to have|not required|not mandatory|not necessary)\b|우대|선택|필수\s*(?:아님|아니|없)/i.test(clause))) return 'advanced_korean_required';
   // Restrict experience matching to role *requirements*: "company has 10
   // years of experience" and "company founded 10 years ago" are not criteria.
   const experienceTitle = /(?:경력\s*)?(?:[5-9]|1\d|[2-9]\d)\s*년\s*(?:이상|이상의|차\s*이상|경력)|(?:\b[5-9]|\b[1-9]\d)\s*\+\s*years?\b|\b(?:senior|lead|principal)\b.*\b(?:[5-9]|1\d)\s*years?\b/i;

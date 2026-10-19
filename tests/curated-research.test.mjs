@@ -119,6 +119,8 @@ test('same-URL source upgrade preserves first collection date and tombstones blo
   assert.equal(upgraded.jobs.length, 1);
   assert.equal(upgraded.jobs[0].firstSeenAt, '2026-10-01T00:00:00.000Z');
   assert.equal(upgraded.jobs[0].lastSeenAt, now);
+  assert.ok(upgraded.jobs[0].legacyIds.includes('old-index-id'));
+  assert.ok(upgraded.jobs[0].legacyIds.some((id) => id.startsWith('kowork-')));
   const removed = mergeHistoricalFeed(incoming, previous, { excludedUrls: [curated.url] });
   assert.equal(removed.jobs.length, 0);
 });
