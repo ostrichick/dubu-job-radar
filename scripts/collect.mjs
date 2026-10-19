@@ -297,7 +297,15 @@ export async function buildFeed({ root = ROOT, fetchImpl = fetch, readFileImpl =
   }
   sourceTasks.push(optionalManual({ root, filename: profile.manualFile || 'config/manual-jobs.json', now, readFileImpl }));
   const results = await Promise.all(sourceTasks);
-  const jobs = dedupeJobs(results.flatMap((x) => x.jobs).filter((job) =>
+  const collectedJobs = results.flatMap((x) => x.jobs);
+  // An individually reviewed record supersedes the same minimal KOWORK index
+  // card, keeping one job card while exposing the richer evidence and dates.
+  const curatedUrls = new Set(collectedJobs
+    .filter((job) => job.sourceKind === 'curated_research')
+    .map((job) => safePublicUrl(job.url)).filter(Boolean));
+  const jobs = dedupeJobs(collectedJobs.filter((job) =>
+    !(job.sourceKind === 'public_listing_index' && curatedUrls.has(safePublicUrl(job.url)))
+  ).filter((job) =>
     job.sourceKind === 'manual' || !excludeOnlineJobReason(job, {
       homeCountry: profile.homeCountry, knownLanguages: profile.spokenLanguages,
     }))).map((job) => ({
@@ -346,14 +354,20 @@ export function mergeHistoricalFeed(incoming, previous, { retentionDays = 60, ma
   const priorList = Array.isArray(previous?.jobs) ? previous.jobs : [];
   const explicitlyExcludedUrls = new Set(excludedUrls.map((url) => safePublicUrl(url)).filter(Boolean));
   const priorById = new Map(priorList.filter((j) => j && typeof j.id === 'string').map((j) => [j.id, j]));
-  const eligibleIncoming = incoming.jobs.filter((job) => job.sourceKind === 'manual' ||
-    (!excludeOnlineJobReason(job, { knownLanguages }) && !excludeQualificationReason(job)));
+  const priorByUrl = new Map(priorList.flatMap((job) => {
+    const url = safePublicUrl(job?.url);
+    return url ? [[url, job]] : [];
+  }));
+  const eligibleIncoming = incoming.jobs.filter((job) =>
+    !explicitlyExcludedUrls.has(safePublicUrl(job.url)) &&
+    (job.sourceKind === 'manual' ||
+      (!excludeOnlineJobReason(job, { knownLanguages }) && !excludeQualificationReason(job))));
   const current = eligibleIncoming.map((job) => {
-    const earlier = priorById.get(job.id);
+    const earlier = priorById.get(job.id) || priorByUrl.get(safePublicUrl(job.url));
     return {
       ...job,
       ...(job.languageFitStatus ? {} : assessLanguageFit(job, knownLanguages)),
-      collectionState: 'seen', firstSeenAt: earlier?.firstSeenAt || earlier?.lastSeenAt || earlier?.verifiedAt || collectedAt,
+      collectionState: 'seen', firstSeenAt: earlier ? (earlier.firstSeenAt || null) : collectedAt,
       lastSeenAt: collectedAt,
     };
   });
@@ -367,7 +381,7 @@ export function mergeHistoricalFeed(incoming, previous, { retentionDays = 60, ma
     if (job.sourceKind === 'curated_research' &&
         (!isoDate(job.researchReviewedAt) ||
         fetchedAt - Date.parse(isoDate(job.researchReviewedAt)) > 30 * 86400_000 ||
-        (isoDate(job.deadline) && Date.parse(isoDate(job.deadline)) < fetchedAt))) return [];
+        (isoDate(job.deadline) && isoDate(job.deadline).slice(0, 10) < collectedAt.slice(0, 10)))) return [];
     // Drop previously misclassified records when a newer, stricter quality gate proves the role requires physical attendance.
     if ((job.market === 'online' && job.category === 'interpreting') ||
         (job.source === 'Arbeitnow' && requiresPhysicalAttendance(job.description))) return [];
@@ -385,7 +399,7 @@ export function mergeHistoricalFeed(incoming, previous, { retentionDays = 60, ma
     return [{
       ...job, collectionState,
       ...(job.languageFitStatus ? {} : assessLanguageFit(job, knownLanguages)),
-      firstSeenAt: job.firstSeenAt || previousSeen,
+      firstSeenAt: job.firstSeenAt || null,
       lastSeenAt: previousSeen,
       evidenceNote: job.evidenceNote || '이전 수집 기록: 공개 목록에서 현재 모집 여부를 재확인하세요',
     }];

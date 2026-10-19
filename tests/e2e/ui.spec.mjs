@@ -6,6 +6,7 @@ const sourceStatus = [
 ];
 
 const basic = { company: '가상회사', source: '가상 출처', sourceKind: 'public_api', verifiedAt: '2026-10-19T01:00:00Z',
+  firstSeenAt: '2026-10-19T01:00:00Z', lastSeenAt: '2026-10-19T01:00:00Z',
   postedAt: '2026-10-18', deadline: '2026-11-18', languageRequirements: '스페인어', eligibilityStatus: 'unknown', eligibility: '확인 필요',
   collectionState: 'seen', pay: '', description: '수집 및 필터 UI 동작 검사에만 사용하는 가상 공고', workplaceMode: 'onsite' };
 
@@ -16,7 +17,7 @@ const feed = { updatedAt: '2026-10-19T01:00:00Z', sourceStatus, jobs: [
   { ...basic, id: 'fixture:iksan', title: '익산 광고 콘텐츠', category: 'advertising', location: '전북 익산시', market: 'offline', url: 'https://example.org/jobs/iksan' },
   { ...basic, id: 'fixture:seoul', title: '서울 브랜드 마케터', category: 'marketing', location: '서울특별시 강남구', market: 'offline', url: 'https://example.org/jobs/seoul' },
   { ...basic, id: 'fixture:old', title: '서울 과거 공고', category: 'marketing', location: '서울특별시', market: 'offline',
-    collectionState: 'not_seen', lastSeenAt: '2026-10-02T01:00:00Z', url: 'https://example.org/jobs/old' },
+    collectionState: 'not_seen', firstSeenAt: '2026-10-02T01:00:00Z', lastSeenAt: '2026-10-02T01:00:00Z', url: 'https://example.org/jobs/old' },
 ] };
 
 test.beforeEach(async ({ page }) => {
@@ -27,6 +28,10 @@ test('Dubu Job Radar is branded in English and foreign-friendly original-site li
   await page.goto('/');
   await expect(page).toHaveTitle(/Dubu Job Radar/);
   await expect(page.locator('.brand-words')).toContainText('DUBU');
+  await expect(page.locator('#panel-online .collection-date-note')).toContainText('Added to Radar');
+  await expect(page.locator('#list-online .job-card').first()).toContainText('Last collected 2026-10-19');
+  await expect(page.locator('#list-online .job-card').first()).toContainText('Added to Radar 2026-10-19');
+  await expect(page.locator('#list-online .job-card').first()).toContainText('Added recently');
   await page.locator('#tab-offline').click();
   const links = page.locator('#panel-offline .platform-grid a');
   await expect(links).toHaveCount(6);
@@ -49,6 +54,8 @@ test('online avoids live interpreting; offline includes nationwide and retains h
   await page.locator('#archive-offline').selectOption('archived');
   await expect(page.locator('#list-offline .job-card')).toHaveCount(1);
   await expect(page.locator('#list-offline')).toContainText('서울 과거 공고');
+  await expect(page.locator('#list-offline .job-card')).toContainText('Added 17 days ago');
+  await expect(page.locator('#list-offline .job-card')).toContainText('Last collected 2026-10-02');
   await page.locator('#source-drawer > summary').click();
   await expect(page.locator('#source-list')).toContainText('WORK24_AUTH_KEY is not configured');
   expect(errors).toEqual([]);

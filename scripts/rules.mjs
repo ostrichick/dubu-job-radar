@@ -215,12 +215,13 @@ const RESTRICTED_COUNTRIES = [
 
 const NON_KOREAN_RESIDENCY_RE = /\b(?:wohn(?:sitz|haft)|ans[aä]ssig|residen(?:t|ce)|based|located|resid(?:e|ing))\b.{0,90}\b(?:deutschland|[oö]sterreich|germany|austria|france|spain|united\s+states|canada|usa|uk|europa|europe)\b|\b(?:ausschlie[sß]lich|nur|only)\b.{0,100}\b(?:kandidat(?:en|innen|:innen)|bewerber(?:innen|:innen)?|applicants?|candidates?)\b.{0,100}\b(?:deutschland|[oö]sterreich|germany|austria|france|spain|usa|europe)\b|\b(?:residentes?|candidatos?)\b.{0,70}\b(?:espa[nñ]a|m[eé]xico|argentina)\b/i;
 
-const FOREIGN_RESIDENCE = '(?:latam|latin\\s+america|south\\s+america|mexico|mexico\\s+city|argentina|brazil|colombia|peru|germany|deutschland|austria|[oö]sterreich|france|spain|europe|eu|usa|united\\s+states|canada|united\\s+kingdom|uk|australia|new\\s+zealand)';
+const FOREIGN_RESIDENCE = '(?:latam|latin\\s+america|south\\s+america|mexico|mexico\\s+city|argentina|brazil|colombia|peru|philippines|philippine|germany|deutschland|austria|[oö]sterreich|france|spain|europe|eu|usa|united\\s+states|canada|united\\s+kingdom|uk|australia|new\\s+zealand)';
 const FOREIGN_RESIDENCE_RULES = [
   new RegExp(`\\b(?:candidates?|applicants?|freelancers?|contractors?|employees?|talent|you|someone|somebody|person)\\b.{0,100}\\b(?:must\\s+)?(?:be\\s+)?(?:based|located|resid(?:e|ing))\\s+(?:in|within)\\s+(?:the\\s+)?${FOREIGN_RESIDENCE}\\b`, 'i'),
   new RegExp(`\\b(?:we\\s+(?:need|seek|want|hire|are\\s+looking\\s+for)\\s+(?:a|an)?|(?:role|position|job)\\s+(?:is\\s+)?).{0,85}\\b(?:based|located|resid(?:e|ing))\\s+(?:in|within)\\s+(?:the\\s+)?${FOREIGN_RESIDENCE}\\b`, 'i'),
   new RegExp(`\\b(?:must|need\\s+to|required\\s+to)\\s+(?:be\\s+)?(?:based|located|resid(?:e|ing))\\s+(?:in|within)\\s+(?:the\\s+)?${FOREIGN_RESIDENCE}\\b`, 'i'),
   new RegExp(`\\b(?:based|located|residing)\\s+(?:in|within)\\s+(?:the\\s+)?${FOREIGN_RESIDENCE}\\s+(?:residents?|candidates?|applicants?)\\s+only\\b`, 'i'),
+  new RegExp(`\\b(?:looking\\s+for|seeking|hiring)\\s+(?:[a-z-]+\\s+)?(?:${FOREIGN_RESIDENCE})[- ]based\\s+(?:residents?|candidates?|applicants?)\\b`, 'i'),
 ];
 
 // Job location and target-market wording are different. These phrases state that
@@ -291,7 +292,7 @@ export function excludeOnlineJobReason({ source = '', market = 'online', title =
   // Arbeitnow's 'remote' flag can mean remote *within Germany*. The city is HQ,
   // so an English worldwide role should still survive.
   if (employerOnlyLocation &&
-      /\b(?:berlin|hamburg|münchen|munich|germany|deutschland|frankfurt|austria|[oö]sterreich|wien|vienna)\b/i.test(location) &&
+      /\b(?:berlin|hamburg|münchen|munich|germany|deutschland|frankfurt|monheim|düsseldorf|duesseldorf|köln|cologne|essen|leverkusen|bonn|stuttgart|austria|[oö]sterreich|wien|vienna)\b/i.test(location) &&
       germanLanguagePosting(description) &&
       !/\b(?:worldwide|anywhere|global\s+remote|work\s+from\s+anywhere|south\s+korea|republic\s+of\s+korea)\b|대한민국|한국/i.test(description)) {
     return 'german_only_germany_job';

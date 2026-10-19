@@ -290,7 +290,11 @@ function normalizeJob(raw, index) {
     languageFit: ['match', 'mismatch'].includes(clean(raw.languageFitStatus)) ? clean(raw.languageFitStatus) : 'unknown',
     languageFitReason: clean(raw.languageFitReason)
       ? englishStatus(raw.languageFitReason, 'Check required languages in the original listing') : '',
-    verifiedAt: clean(raw.verifiedAt), lastSeenAt: clean(raw.lastSeenAt), savedAt: clean(raw.savedAt),
+    verifiedAt: clean(raw.verifiedAt), firstSeenAt: clean(raw.firstSeenAt),
+    lastSeenAt: clean(raw.lastSeenAt), researchReviewedAt: clean(raw.researchReviewedAt),
+    listingStatus: ['listed', 'unconfirmed'].includes(clean(raw.listingStatus)) ? clean(raw.listingStatus) : '',
+    researchPriority: ['high', 'normal', 'low'].includes(clean(raw.researchPriority)) ? clean(raw.researchPriority) : '',
+    savedAt: clean(raw.savedAt),
     collectionState: clean(raw.collectionState) || 'unknown',
     archived: clean(raw.collectionState) === 'not_seen', manual: id.startsWith('manual:'),
     ...resolveLocation(raw, location),
@@ -333,17 +337,20 @@ function createCard(job) {
   const header = el('div', 'card-top');
   const chips = el('div', 'top-chips');
   chips.append(el('span', 'category-chip', categoryNames[job.category]));
-  const age = daysSince(job.verifiedAt);
+  const age = daysSince(job.firstSeenAt);
   if (age !== null) {
-    const label = age < 0 ? 'Future verification date' : age <= 3 ? 'Recently checked' : age <= 7 ? 'Checked within 7 days' : 'Last checked over 7 days ago';
+    const label = age < 0 ? 'Future collection date' : age <= 3 ? 'Added recently' : age <= 7 ? 'Added within 7 days' : `Added ${age} days ago`;
     chips.append(el('span', `freshness-chip ${age > 7 ? 'is-old' : ''}`.trim(), label));
-  } else {
-    chips.append(el('span', 'freshness-chip is-old', 'Check date unknown'));
+  } else if (!job.manual) {
+    chips.append(el('span', 'freshness-chip is-old', 'First collection date unknown'));
   }
   if (job.archived) chips.append(el('span', 'history-chip', 'Not in latest collection · Historical'));
   else if (job.collectionState === 'unverified' && !job.manual) chips.append(el('span', 'history-chip is-unverified', 'Collection unverified'));
   if (job.manual) chips.append(el('span', 'history-chip is-manual', 'Added manually'));
   if (job.sourceKind === 'curated_research') chips.append(el('span', 'history-chip is-manual', 'Original page individually reviewed'));
+  if (job.listingStatus === 'listed') chips.append(el('span', 'history-chip is-listed', 'Source lists as open · Confirm'));
+  else if (job.listingStatus === 'unconfirmed') chips.append(el('span', 'history-chip is-unverified', 'Opening status unconfirmed'));
+  if (job.researchPriority === 'low') chips.append(el('span', 'history-chip is-unverified', 'Stretch role · Extra requirements'));
   if (job.languageFit === 'mismatch') chips.append(el('span', 'language-fit-chip is-mismatch', 'Language mismatch · Check'));
   else if (job.languageFit === 'match') chips.append(el('span', 'language-fit-chip is-match', 'Possible language match'));
   const saved = state.saved.has(job.id);
@@ -424,10 +431,15 @@ function createCard(job) {
 
   const footer = el('div', 'card-footer');
   const source = el('span', 'source-kind', sourceKindNames[job.sourceKind] || job.sourceKind || 'Source type unknown');
+  const lastCollected = formatDate(job.lastSeenAt || job.verifiedAt);
+  const firstCollected = formatDate(job.firstSeenAt);
+  const sourceReviewed = formatDate(job.researchReviewedAt || (job.sourceKind === 'curated_research' ? job.verifiedAt : ''));
   const stamp = el('span', 'verified-date', job.archived
-    ? `Last collected ${formatDate(job.lastSeenAt || job.verifiedAt)} · Availability unverified`
+    ? `Last collected ${lastCollected} · Added to Radar ${firstCollected} · Not in latest collection; availability unverified`
     : job.manual ? `Saved manually ${formatDate(job.savedAt, true)} · Original unverified`
-      : `Data checked ${formatDate(job.verifiedAt)}`);
+      : job.sourceKind === 'curated_research'
+        ? `Last collected ${lastCollected} · Added to Radar ${firstCollected} · Source reviewed ${sourceReviewed}`
+        : `Last collected ${lastCollected} · Added to Radar ${firstCollected}`);
   const meta = el('div', 'source-meta'); meta.append(source, stamp);
   footer.append(meta);
   if (job.url) {

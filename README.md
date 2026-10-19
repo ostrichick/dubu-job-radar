@@ -13,6 +13,7 @@ Node.js 22 이상. npm.cmd run refresh로 공개 API 데이터를 갱신하고 n
 - 고용24는 사용자 요청에 따라 기본 수집에서 제외했습니다. 외국인 대상 구직과 직접 관련되는 소스를 우선합니다.
 - 출근형 공고는 전주·완주, 익산·김제, 그 밖의 국내 지역(이사/근무형태 협의 필요), 위치 미확인으로 구분합니다. 실제 통근 시간은 계산하지 않습니다.
 - 데이터의 공고 상태 seen은 이번 수집에서 URL이 발견됐다는 의미이고, 지원 가능이나 마감 전을 보장하지 않습니다. 과거에만 등장한 URL은 이전 확인 시점을 명시합니다.
+- 날짜 표시: `Posted`는 원문 게시일, `Added to Radar`는 레이더에서 처음 수집한 날짜, `Last collected`는 가장 최근 피드 실행에서 발견한 날짜입니다. 수동 조사 공고에는 원문 검토일도 별도로 표시합니다. 6시간마다 피드가 실행돼도 원문이 재검수되는 것은 아니며, 수집일만으로 모집 중임을 보장하지 않습니다.
 
 ## 외국인 채용 플랫폼 — KOWORK 최우선
 
@@ -37,7 +38,11 @@ ChatGPT에게 개별 플랫폼에서 공고를 조사하도록 요청하면, 공
 
 현재 조사 예시:
 - 서울 다문화가족 포털 Hanultari, Chingu Mobile 스페인어·영어 온라인팀 (https://mcfamily.or.kr/en/jobs/opening/14881), 2026-11-06 마감 공고·신입 가능·영어 고객응대 필수.
-- KOWORK, The Founders(Anua) 글로벌 마케팅 시딩 인턴 (https://kowork.kr/en/post/1924), 스페인어·프랑스어·아랍어 중 하나 가능·필수 고경력 미명시·현재 마감일 확인 필요.
+- KOWORK, The Founders(Anua) 글로벌 마케팅 시딩 인턴 (https://kowork.kr/en/post/1924), 스페인어·프랑스어·아랍어 중 하나 가능·필수 고경력 미명시·현재 모집 여부 미확인.
+- KOWORK, MyRealTrip Overseas Marketing Intern (https://kowork.kr/en/post/4264), 스페인어 관련 시장조사·콘텐츠 현지화·광고 카피. 기존 유효 체류자격과 한국어 또는 영어 의사소통 필요, 마감일 미표시.
+- KOWORK, EStar E-commerce Marketing Intern (https://kowork.kr/en/post/7322), 스페인어 필수·한국어 우대(필수 아님)·세전 월 250만 원·모집 여부 미확인.
+- JOBPLOY, Cellimax Global MD (Spain) Intern (https://www.jobploy.kr/en/recruit/retailservice-seoul-global-md-intern-spain-intern), 세전 월 300만 원·2026-10-31 마감·언어/비자 요건 추가 확인 필요.
+- Hanultari, Art Korea English/Spanish-speaking Sales Staff (https://mcfamily.or.kr/en/jobs/opening/14986), 경력 불필요·영어/스페인어 고객 응대·마케팅이 아닌 인접 외국어 직무.
 
 수동으로 재확인하지 않은 리서치는 30일 경과 시 표시 대상에서 제외되고, 명시된 마감일이 지나면 자동 제외됩니다. GitHub Actions 6시간 갱신은 이 파일을 다시 읽을 뿐, 원문을 다시 검수했다고 표시하지 않습니다. 기존 KOWORK/기업 ATS 자동 수집은 별도로 유지합니다. 다른 출처의 후보를 추가할 때는 공식 원문·검증 시각·근무방식·지리적 제한·필수 언어·지원경력과 자체 작성 요약을 기록해야 합니다.
 

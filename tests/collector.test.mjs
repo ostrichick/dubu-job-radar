@@ -60,6 +60,8 @@ test('eligibility never assumes a legal right to work from Korea', () => {
   assert.equal(assessEligibility({ restriction: 'Worldwide', description: 'US work authorization required.' }).status, 'restricted');
   assert.equal(assessEligibility({ description: 'Wir suchen ausschließlich Kandidat:innen mit Wohnsitz in Deutschland oder Österreich.' }).status, 'restricted');
   assert.equal(assessEligibility({ market: 'offline', location: '전주시 완산구' }).status, 'unknown');
+  assert.equal(excludeOnlineJobReason({ title: 'Marketing and Sales Administrator',
+    description: 'Looking for Philippines-based candidates for this remote role.' }, props), 'outside_supported_residence');
 });
 
 test('hard exclusions require an unsupported language in the role or a mandatory requirement', () => {
@@ -194,6 +196,7 @@ test('Arbeitnow remote headquarters location does not get mistaken for applicant
     { slug: 'y', title: 'Marketing Coordinator', company_name: 'D', remote: false, location: 'Berlin', url: 'https://www.arbeitnow.com/view/y' },
     { slug: 'z', title: 'Online Marketing Manager', company_name: 'D', remote: true, location: 'Berlin', url: 'https://www.arbeitnow.com/view/z', description: 'Ausschließlich Kandidat:innen mit Wohnsitz in Deutschland oder Österreich.', created_at: 1792373400 },
     { slug: 'w', title: 'Content Creator', company_name: 'D', remote: true, location: 'Berlin', url: 'https://www.arbeitnow.com/view/w', description: 'Wir suchen jemanden in Hamburg, der das übernimmt. 4-5 feste Drehtage im Monat bei meinen Kunden in Hamburg und Umgebung.', created_at: 1792373400 },
+    { slug: 'german-language', title: 'Google Ads Manager', company_name: 'Simplyright', remote: true, location: 'Monheim am Rhein', url: 'https://www.arbeitnow.com/view/german-language', description: 'Wir suchen Dich für unser Team. Deine Aufgaben sind Google Ads und Kampagnensteuerung. Unsere Anforderungen: Deutschkenntnisse, mindestens zwei Jahre Berufserfahrung, sehr gute schriftliche und mündliche Kommunikation. Wir bieten flexible Arbeitszeiten und Homeoffice.', created_at: 1792373400 },
   ] }, props);
   assert.equal(jobs.length, 1);
   assert.equal(jobs[0].eligibilityStatus, 'unknown');
@@ -253,7 +256,8 @@ test('historical jobs remain visible when an upstream feed no longer returns the
   assert.equal(updated.jobs[0].collectionState, 'seen');
   assert.equal(updated.jobs[1].collectionState, 'not_seen');
   assert.equal(updated.jobs[1].lastSeenAt, earlier);
-  assert.equal(updated.jobs[1].firstSeenAt, earlier);
+  // Legacy records without a firstSeenAt must not invent one from last verification.
+  assert.equal(updated.jobs[1].firstSeenAt, null);
   assert.match(updated.historyPolicy.meaning, /모집 종료를 뜻하지 않음/);
 });
 

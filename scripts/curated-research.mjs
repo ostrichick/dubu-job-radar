@@ -14,6 +14,7 @@ const MAX_RECORDS = 1000;
 const allowedSources = new Set(['KOWORK', 'Hanultari', 'JOBPLOY', 'K-WORK',
   'PeopleNJob', 'Company Careers', 'LinkedIn', 'ProZ', 'Upwork', 'Workana',
   'Other original source']);
+const tombstoneSources = new Set([...allowedSources, 'Arbeitnow', 'Remote OK']);
 
 function dateAt(value) {
   const date = reviewedDate(value);
@@ -59,7 +60,7 @@ export function normalizeCuratedResearch(item, { now = new Date().toISOString(),
 
   const description = safeText(item.researchSummary, 700);
   const essential = safeText(item.essentialRequirements, 1000);
-  const category = ['marketing', 'advertising', 'translation', 'interpreting', 'content']
+  const category = ['marketing', 'advertising', 'translation', 'interpreting', 'content', 'other']
     .includes(item.category) ? item.category : classifyRole({
       title, description: description + ' ' + essential, market: item.market,
     });
@@ -78,13 +79,19 @@ export function normalizeCuratedResearch(item, { now = new Date().toISOString(),
     market: item.market, location, homeCountry: 'KR',
     restriction: item.locationRestriction || location, description: essential,
   });
-  const fit = assessLanguageFit({
+  const detectedFit = assessLanguageFit({
     title, description: essential, category, languageRequirements,
   }, languages);
+  const fit = ['match', 'mismatch', 'unknown'].includes(item.languageFitStatus) &&
+    safeText(item.languageFitReason, 240)
+    ? { languageFitStatus: item.languageFitStatus, languageFitReason: safeText(item.languageFitReason, 240) }
+    : detectedFit;
   return {
     id: stableId('curated', url, url), url, title, company, source,
     sourceKind: 'curated_research', researchMethod: 'reviewed_original_page',
-    researchReviewedAt: reviewedAt, researchPriority: item.priority === 'high' ? 'high' : 'normal',
+    researchReviewedAt: reviewedAt,
+    researchPriority: ['high', 'low'].includes(item.priority) ? item.priority : 'normal',
+    listingStatus: item.listingStatus === 'listed' ? 'listed' : 'unconfirmed',
     market: item.market, workplaceMode, category, location,
     province: item.market === 'offline' ? koreaProvince(location) : '',
     commuteClass: item.market === 'offline' ? commuteRegion(location) : '',
@@ -123,15 +130,25 @@ export async function collectCuratedResearch({
       }],
     };
   }
-  const jobs = entries.flatMap((item) => {
+  // Tombstones remove stale or disqualified leads from both the current feed and
+  // retained history without pretending that the source itself confirmed closure.
+  const withdrawn = entries.filter((item) => item?.withdrawnFromRadar === true);
+  const excludedUrls = [...new Set(withdrawn.flatMap((item) => {
+    const source = safeText(item.source, 70);
+    const url = safePublicUrl(item.url);
+    return tombstoneSources.has(source) && url ? [url] : [];
+  }))];
+  const activeEntries = entries.filter((item) => item?.withdrawnFromRadar !== true);
+  const jobs = activeEntries.flatMap((item) => {
     const job = normalizeCuratedResearch(item, { now, languages });
     return job ? [job] : [];
   });
-  const rejected = entries.length - jobs.length;
-  return { jobs, successfulRequests: 0,
+  const rejected = activeEntries.length - jobs.length;
+  return { jobs, excludedUrls, successfulRequests: 0,
     sourceStatus: [{
       source: 'ChatGPT Research', status: 'manual', count: jobs.length, checkedAt: now,
       detail: String(jobs.length) + ' individually researched leads; ' + rejected +
-        ' excluded or expired. Not live-checked at each scheduled refresh.',
+        ' excluded or expired; ' + excludedUrls.length +
+        ' manually withdrawn from the radar. Not live-checked at each scheduled refresh.',
     }] };
 }

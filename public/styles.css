@@ -105,6 +105,7 @@ summary:focus-visible, .tab-panel:focus-visible {
 .results-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 7px 15px; padding: 18px 0 14px; border-top: 1px solid var(--line); }
 .results-count { color: #234934; margin: 0; font-size: 14px; font-weight: 800; letter-spacing: -.02em; }
 .results-note { margin: 0; color: #8a948a; font-size: 11px; }
+.collection-date-note { margin: -2px 0 17px; color: #7b897e; font-size: 11px; line-height: 1.7; }
 .jobs-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
 .job-card { min-width: 0; display: flex; flex-direction: column; background: #fff; padding: 23px 23px 19px; border: 1px solid #e0e7dd; border-radius: 12px; box-shadow: 0 3px 18px rgb(43 64 48 / 3%); transition: border-color .18s, box-shadow .18s, transform .18s; }
 .job-card:hover { border-color: #acc4b2; box-shadow: var(--shadow); transform: translateY(-1px); }
@@ -114,6 +115,7 @@ summary:focus-visible, .tab-panel:focus-visible {
 .history-chip { display: inline-flex; padding: 4px 8px; border-radius: 5px; color: #865a38; background: #fff1dc; font-size: 10px; font-weight: 850; line-height: 1.4; }
 .history-chip.is-unverified { color: #77735f; background: #f5f2e7; }
 .history-chip.is-manual { color: #41658d; background: #ecf3fa; }
+.history-chip.is-listed { color: #2f6b43; background: #e8f5e9; }
 .language-fit-chip { display: inline-flex; padding: 4px 8px; border-radius: 5px; font-size: 10px; font-weight: 850; line-height: 1.4; }
 .language-fit-chip.is-mismatch { background: #fce9e4; color: #9d4f41; }
 .language-fit-chip.is-match { background: #e5f2e7; color: #3b7650; }
