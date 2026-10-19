@@ -13,7 +13,7 @@ Node.js 22 이상. npm.cmd run refresh로 공개 API 데이터를 갱신하고 n
 - 고용24는 사용자 요청에 따라 기본 수집에서 제외했습니다. 외국인 대상 구직과 직접 관련되는 소스를 우선합니다.
 - 출근형 공고는 전주·완주, 익산·김제, 그 밖의 국내 지역(이사/근무형태 협의 필요), 위치 미확인으로 구분합니다. 실제 통근 시간은 계산하지 않습니다.
 - 데이터의 공고 상태 seen은 이번 수집에서 URL이 발견됐다는 의미이고, 지원 가능이나 마감 전을 보장하지 않습니다. 과거에만 등장한 URL은 이전 확인 시점을 명시합니다.
-- 날짜 표시: `Posted`는 원문 게시일, `Added to Radar`는 레이더에서 처음 수집한 날짜, `Last collected`는 가장 최근 피드 실행에서 발견한 날짜입니다. 수동 조사 공고에는 원문 검토일도 별도로 표시합니다. 6시간마다 피드가 실행돼도 원문이 재검수되는 것은 아니며, 수집일만으로 모집 중임을 보장하지 않습니다.
+- 날짜 표시: `Posted`는 원문 게시일(원문에 없으면 미상), `Added to Radar`는 레이더 최초 등록일, 자동 수집 공고의 `Last collected`는 실제 공개 수집에서 마지막으로 발견한 날짜입니다. 수동 원문 조사 공고는 별도로 `Source last reviewed`(사람/AI가 원문을 실제 열어 본 날짜)와 `Last included in feed`(자동 갱신에서 기존 연구 데이터를 다시 반영한 날짜)를 표시합니다. 후자는 원문 재검수 날짜가 아니며, 어떤 날짜도 현재 채용 보장을 뜻하지 않습니다.
 
 ## 외국인 채용 플랫폼 — KOWORK 최우선
 
@@ -37,6 +37,10 @@ KOWORK 공개 SSR 목록과 소수의 공개 상세 URL을 실제로 확인하�
 ChatGPT에게 개별 플랫폼에서 공고를 조사하도록 요청하면, 공개 원문 URL을 열어 한국 거주 지원 가능 여부·한국어 고급 필수 여부·경력 5년 이상 필수 여부·영어 요구사항·마감일을 확인한 후 config/research-jobs.json에 사람이 검토한 짧은 자체 요약과 근거 날짜만 등록할 수 있습니다. 등록된 자료는 scripts/curated-research.mjs에서 기존 자동 API 데이터와 중복 제거하며, 원문 전체·사진·개인 연락처를 옮겨 적지 않습니다. 별도 ChatGPT 대화가 실행되거나 자동으로 웹을 조사한다는 뜻은 아닙니다.
 
 현재 조사 예시:
+- SNOW 공식 채용, 남미 콘텐츠 마케팅 체험형 인턴 (https://recruit.snowcorp.com/rcrt/view.do?annoId=30005557&lang=ko), 2026-10-22 접수 마감. 스페인어 원어민 강점과 맞지만 영상·이미지 편집/숏폼 제작 실력 필수.
+- SNOW 공식 채용, 남미(스페인어권) 콘텐츠 마케터 계약직 (https://recruit.snowcorp.com/rcrt/view.do?annoId=30005516&lang=ko), 2026-10-21 접수 마감. 6개월 계약, 콘텐츠 직접 제작 역량 필수.
+- KOWORK, 한수나텍 스페인어 화자 유튜브 출연 (https://kowork.kr/en/post/3175), 대전 촬영 시급 3만5000원 표기·한국어 불필요·영어로 설명 필수. 현재 모집 확인 필요.
+- KOncierge 공식 채용, Growth Marketing Intern (https://koncierge.kr/ko/careers/growth-intern), 한국어 우대·영어 필수, 하이브리드 가능. 과거 시작일과 채용중 배지가 공존해 최신 모집 여부 확인 필요.
 - 서울 다문화가족 포털 Hanultari, Chingu Mobile 스페인어·영어 온라인팀 (https://mcfamily.or.kr/en/jobs/opening/14881), 2026-11-06 마감 공고·신입 가능·영어 고객응대 필수.
 - KOWORK, The Founders(Anua) 글로벌 마케팅 시딩 인턴 (https://kowork.kr/en/post/1924), 스페인어·프랑스어·아랍어 중 하나 가능·필수 고경력 미명시·현재 모집 여부 미확인.
 - KOWORK, MyRealTrip Overseas Marketing Intern (https://kowork.kr/en/post/4264), 스페인어 관련 시장조사·콘텐츠 현지화·광고 카피. 기존 유효 체류자격과 한국어 또는 영어 의사소통 필요, 마감일 미표시.

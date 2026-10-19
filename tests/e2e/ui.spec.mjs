@@ -39,6 +39,27 @@ test('Dubu Job Radar is branded in English and foreign-friendly original-site li
   await expect(page.locator('#panel-offline .platform-footnote')).toContainText('lightweight public-listing discovery');
 });
 
+test('manual original-page research distinguishes source review from repeated feed inclusion', async ({ page }) => {
+  const researched = {
+    ...basic, id: 'fixture:curated', source: 'Company Careers', sourceKind: 'curated_research',
+    title: 'Spanish content intern', company: 'Example Studio', market: 'offline', category: 'content',
+    location: 'Seoul', url: 'https://example.org/jobs/curated',
+    postedAt: null, researchReviewedAt: '2026-10-16T00:00:00Z',
+    firstSeenAt: '2026-10-17T00:00:00Z', lastSeenAt: '2026-10-19T01:00:00Z',
+  };
+  await page.route('**/jobs.json', (route) => route.fulfill({ json: {
+    ...feed, jobs: [researched],
+  } }));
+  await page.goto('/');
+  await page.locator('#tab-offline').click();
+  const card = page.locator('#list-offline .job-card');
+  await expect(card).toContainText('Source last reviewed 2026-10-16');
+  await expect(card).toContainText('Added to Radar 2026-10-17');
+  await expect(card).toContainText('Last included in feed 2026-10-19');
+  await expect(card).toContainText('Posted');
+  await expect(card).toContainText('Not listed');
+});
+
 test('online avoids live interpreting; offline includes nationwide and retains historical jobs', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (err) => errors.push(err.message));

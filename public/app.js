@@ -435,10 +435,12 @@ function createCard(job) {
   const firstCollected = formatDate(job.firstSeenAt);
   const sourceReviewed = formatDate(job.researchReviewedAt || (job.sourceKind === 'curated_research' ? job.verifiedAt : ''));
   const stamp = el('span', 'verified-date', job.archived
-    ? `Last collected ${lastCollected} · Added to Radar ${firstCollected} · Not in latest collection; availability unverified`
+    ? job.sourceKind === 'curated_research'
+      ? `Source last reviewed ${sourceReviewed} · Added to Radar ${firstCollected} · Last included in feed ${lastCollected} · Source not rechecked`
+      : `Last collected ${lastCollected} · Added to Radar ${firstCollected} · Not in latest collection; availability unverified`
     : job.manual ? `Saved manually ${formatDate(job.savedAt, true)} · Original unverified`
       : job.sourceKind === 'curated_research'
-        ? `Last collected ${lastCollected} · Added to Radar ${firstCollected} · Source reviewed ${sourceReviewed}`
+        ? `Source last reviewed ${sourceReviewed} · Added to Radar ${firstCollected} · Last included in feed ${lastCollected}`
         : `Last collected ${lastCollected} · Added to Radar ${firstCollected}`);
   const meta = el('div', 'source-meta'); meta.append(source, stamp);
   footer.append(meta);
