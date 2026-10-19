@@ -1,0 +1,19 @@
+{
+  "name": "nicole-job-radar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node local-server.mjs",
+    "refresh": "node scripts/collect.mjs",
+    "test": "node --test",
+    "test:e2e": "playwright test",
+    "check": "node --check local-server.mjs && node --check scripts/collect-korea.mjs && node --check scripts/collect-korea-ats.mjs && node --check scripts/collect.mjs && node --check scripts/rules.mjs && node --check public/app.js && npm run test"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
+}

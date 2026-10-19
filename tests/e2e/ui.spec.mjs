@@ -1,0 +1,65 @@
+import { test, expect } from '@playwright/test';
+
+const sourceStatus = [
+  { source: '가상 출처', status: 'ok', count: 4, detail: '테스트 전용 공개 공고', checkedAt: '2026-10-19T01:00:00Z' },
+  { source: '고용24', status: 'not_configured', count: 0, detail: 'WORK24_AUTH_KEY 미설정', checkedAt: '2026-10-19T01:00:00Z' },
+];
+
+const basic = { company: '가상회사', source: '가상 출처', sourceKind: 'public_api', verifiedAt: '2026-10-19T01:00:00Z',
+  postedAt: '2026-10-18', deadline: '2026-11-18', languageRequirements: '스페인어', eligibilityStatus: 'unknown', eligibility: '확인 필요',
+  collectionState: 'seen', pay: '', description: '수집 및 필터 UI 동작 검사에만 사용하는 가상 공고', workplaceMode: 'onsite' };
+
+const feed = { updatedAt: '2026-10-19T01:00:00Z', sourceStatus, jobs: [
+  { ...basic, id: 'fixture:online', title: 'Spanish social media strategist', category: 'marketing', location: 'Remote', market: 'online', workplaceMode: 'remote', url: 'https://example.org/jobs/online' },
+  { ...basic, id: 'fixture:interpreting', title: 'Video interpreter (Spanish)', category: 'interpreting', location: 'Remote', market: 'online', workplaceMode: 'remote', url: 'https://example.org/jobs/interpreter' },
+  { ...basic, id: 'fixture:jeonju', title: '전주 스페인어 마케팅', category: 'marketing', location: '전북 전주시 덕진구', market: 'offline', url: 'https://example.org/jobs/jeonju' },
+  { ...basic, id: 'fixture:iksan', title: '익산 광고 콘텐츠', category: 'advertising', location: '전북 익산시', market: 'offline', url: 'https://example.org/jobs/iksan' },
+  { ...basic, id: 'fixture:seoul', title: '서울 브랜드 마케터', category: 'marketing', location: '서울특별시 강남구', market: 'offline', url: 'https://example.org/jobs/seoul' },
+  { ...basic, id: 'fixture:old', title: '서울 과거 공고', category: 'marketing', location: '서울특별시', market: 'offline',
+    collectionState: 'not_seen', lastSeenAt: '2026-10-02T01:00:00Z', url: 'https://example.org/jobs/old' },
+] };
+
+test.beforeEach(async ({ page }) => {
+  await page.route('**/jobs.json', (route) => route.fulfill({ json: feed }));
+});
+
+test('online avoids live interpreting; offline includes nationwide and retains historical jobs', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (err) => errors.push(err.message));
+  await page.goto('/');
+  await expect(page.locator('#tab-count-online')).toHaveText('1');
+  await page.locator('#tab-offline').click();
+  await expect(page.locator('#tab-count-offline')).toHaveText('4');
+  await expect(page.locator('.region-nearby')).toHaveCount(1);
+  await expect(page.locator('.region-expanded')).toHaveCount(1);
+  await expect(page.locator('.region-relocation')).toHaveCount(2);
+  await page.locator('#province-offline').selectOption('서울');
+  await expect(page.locator('#list-offline .job-card')).toHaveCount(2);
+  await page.locator('#archive-offline').selectOption('archived');
+  await expect(page.locator('#list-offline .job-card')).toHaveCount(1);
+  await expect(page.locator('#list-offline')).toContainText('서울 과거 공고');
+  await page.locator('#source-drawer > summary').click();
+  await expect(page.locator('#source-list')).toContainText('WORK24_AUTH_KEY 미설정');
+  expect(errors).toEqual([]);
+});
+
+test('manual Upwork lead appears immediately and survives reload', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#manual-entry > summary').click();
+  await page.locator('#manual-title').fill('Spanish content microproject');
+  await page.locator('#manual-url').fill('https://www.upwork.com/jobs/~fixture-only');
+  await page.locator('#manual-category').selectOption('content');
+  await page.locator('#manual-form button[type=submit]').click();
+  await expect(page.locator('#list-online')).toContainText('Spanish content microproject');
+  await page.reload();
+  await expect(page.locator('#list-online')).toContainText('Spanish content microproject');
+  await expect(page.locator('#manual-count')).toContainText('1');
+});
+
+test('narrow screen has no horizontal overflow', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await expect(page.locator('#tab-online')).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+  expect(overflow).toBe(false);
+});

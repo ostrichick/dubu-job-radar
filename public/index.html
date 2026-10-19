@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f7f6f2">
+    <meta name="description" content="니콜의 온라인 프리랜스 및 전국 오프라인 채용 공고를 한곳에서 확인하는 구직 레이더입니다.">
+    <title>Nicole Job Radar | 니콜의 채용 레이더</title>
+    <link rel="stylesheet" href="./styles.css">
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">본문으로 건너뛰기</a>
+    <svg aria-hidden="true" class="icon-definitions" xmlns="http://www.w3.org/2000/svg">
+      <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="7"/><path d="m16 16 5 5"/></symbol>
+      <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></symbol>
+      <symbol id="icon-bookmark" viewBox="0 0 24 24"><path d="M6 4.5h12v16l-6-4-6 4z"/></symbol>
+      <symbol id="icon-pin" viewBox="0 0 24 24"><path d="M20 10c0 5.3-8 11-8 11S4 15.3 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.7"/></symbol>
+      <symbol id="icon-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></symbol>
+      <symbol id="icon-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 9a7.5 7.5 0 0 1 13-2l1 5M4 12l1 5a7.5 7.5 0 0 0 13-2"/></symbol>
+    </svg>
+
+    <div class="app-shell">
+      <header class="site-header">
+        <div class="brand" aria-label="Nicole Job Radar 홈">
+          <span class="brand-mark" aria-hidden="true">N<span>.</span></span>
+          <span class="brand-words"><strong>NICOLE</strong><small>JOB RADAR</small></span>
+        </div>
+        <div class="header-meta"><span class="live-dot" aria-hidden="true"></span><span id="feed-date">공고 불러오는 중</span></div>
+      </header>
+
+      <main id="main">
+        <section class="intro" aria-labelledby="page-heading">
+          <div class="intro-copy">
+            <p class="eyebrow">CURATED OPPORTUNITIES · KOREA & WORLDWIDE</p>
+            <h1 id="page-heading">새로운 기회를<br><em>더 넓게 발견하다.</em></h1>
+            <p class="intro-description">한국어 조건과 거리에 가로막히지 않도록. 온라인 프리랜스 기회부터 전주 근교, 전국의 오프라인 채용까지 함께 살펴보세요.</p>
+          </div>
+          <div class="intro-aside" aria-label="서비스 안내">
+            <span class="aside-index">01 — 02</span>
+            <p>검색 범위를 넓히되,<br>지원 조건은 <strong>원문 기준</strong>으로 확인합니다.</p>
+            <span class="aside-footnote">공고 수와 업데이트 정보는 데이터 로딩 후 표시됩니다.</span>
+          </div>
+        </section>
+
+        <section class="board" aria-labelledby="board-heading">
+          <div class="board-heading-row">
+            <div><p class="eyebrow">JOB DISCOVERY</p><h2 id="board-heading">채용 공고 탐색</h2></div>
+            <button class="refresh-button" type="button" id="refresh-button" aria-label="공고 데이터 다시 불러오기">
+              <svg class="icon"><use href="#icon-refresh"/></svg><span>새로고침</span>
+            </button>
+          </div>
+
+          <div id="feed-message" class="feed-message" role="status" aria-live="polite" hidden></div>
+
+          <div class="tab-list" role="tablist" aria-label="채용 유형">
+            <button type="button" class="tab-button is-active" id="tab-online" role="tab" aria-controls="panel-online" aria-selected="true" tabindex="0" data-tab="online">
+              <span class="tab-number">01</span><span class="tab-label">온라인 · 재택 / 프리랜스</span><span id="tab-count-online" class="tab-count">—</span>
+            </button>
+            <button type="button" class="tab-button" id="tab-offline" role="tab" aria-controls="panel-offline" aria-selected="false" tabindex="-1" data-tab="offline">
+              <span class="tab-number">02</span><span class="tab-label">오프라인 · 전국 채용</span><span id="tab-count-offline" class="tab-count">—</span>
+            </button>
+          </div>
+
+          <section class="tab-panel" id="panel-online" role="tabpanel" aria-labelledby="tab-online" tabindex="0">
+            <div class="panel-intro"><div><h3>어디서든 가능한 일</h3><p>마케팅, 광고, 콘텐츠, 번역 분야의 원격·프리랜스 공고를 탐색합니다. 언어·거주지·지원 자격이 미확인된 공고도 함께 표시됩니다.</p></div><span class="panel-pill">GLOBAL / REMOTE</span></div>
+            <div class="filters" aria-label="온라인 공고 필터">
+              <label class="search-field" for="search-online"><svg class="icon"><use href="#icon-search"/></svg><span class="sr-only">온라인 공고 검색</span><input type="search" id="search-online" placeholder="직무, 회사, 언어, 키워드 검색" autocomplete="off"></label>
+              <label class="select-field" for="category-online"><span>직무</span><select id="category-online"><option value="all">전체 분야</option><option value="marketing">마케팅</option><option value="advertising">광고</option><option value="translation">번역</option><option value="content">콘텐츠</option><option value="other">기타</option></select></label>
+              <label class="select-field" for="archive-online"><span>기록</span><select id="archive-online"><option value="all">전체 기록</option><option value="current">최근 수집</option><option value="archived">과거 기록</option><option value="unverified">수집 여부 미검증</option></select></label>
+              <label class="select-field" for="language-fit-online"><span>언어</span><select id="language-fit-online"><option value="all">적합성 전체</option><option value="match">부합 가능</option><option value="mismatch">불일치</option><option value="unknown">미확인</option></select></label>
+              <label class="check-field" for="saved-online"><input type="checkbox" id="saved-online"><span>관심 공고만</span></label>
+            </div>
+            <div class="results-head"><p id="count-online" class="results-count" role="status" aria-live="polite">공고를 불러오는 중입니다.</p><p class="results-note">실시간 통역 공고 제외 · 지원 조건은 원문 확인</p></div>
+            <div class="jobs-grid" id="list-online" aria-label="온라인 공고 목록"></div>
+            <div class="more-wrap"><button type="button" id="more-online" class="more-button" hidden>공고 더 보기</button></div>
+
+            <aside class="platform-section" aria-labelledby="platform-heading">
+              <div class="platform-heading"><div><p class="eyebrow">MANUAL SEARCH</p><h3 id="platform-heading">플랫폼에서 직접 더 찾아보기</h3><p>일부 프리랜스 플랫폼은 자동 수집에 포함되지 않습니다. 아래 링크에서 검색한 뒤 각 플랫폼 계정에 검색 조건을 저장해 두세요.</p></div><span class="manual-tag">수동 검색</span></div>
+              <div class="platform-grid">
+                <a class="platform-card" href="https://www.upwork.com/nx/search/jobs/?q=Korean%20translation" target="_blank" rel="noopener noreferrer"><span class="platform-name">Upwork</span><span class="platform-description">한국어 번역 공고 검색 · 로그인 후 검색 조건 저장</span><svg class="icon"><use href="#icon-arrow"/></svg></a>
+                <a class="platform-card" href="https://www.upwork.com/nx/search/jobs/?q=digital%20marketing" target="_blank" rel="noopener noreferrer"><span class="platform-name">Upwork · Marketing</span><span class="platform-description">디지털 마케팅 공고를 직접 검색</span><svg class="icon"><use href="#icon-arrow"/></svg></a>
+                <a class="platform-card" href="https://www.proz.com/jobs" target="_blank" rel="noopener noreferrer"><span class="platform-name">ProZ</span><span class="platform-description">번역 프리랜스 프로젝트</span><svg class="icon"><use href="#icon-arrow"/></svg></a>
+                <a class="platform-card" href="https://www.workana.com/jobs" target="_blank" rel="noopener noreferrer"><span class="platform-name">Workana</span><span class="platform-description">프리랜스 마케팅·번역 프로젝트</span><svg class="icon"><use href="#icon-arrow"/></svg></a>
+              </div>
+              <p class="platform-footnote">플랫폼 링크는 직접 검색용이며, 해당 플랫폼의 최신 공고가 자동 수집되었다는 의미가 아닙니다.</p>
+            </aside>
+          </section>
+
+          <section class="tab-panel" id="panel-offline" role="tabpanel" aria-labelledby="tab-offline" tabindex="0" hidden>
+            <div class="panel-intro"><div><h3>전주 근교부터 전국까지</h3><p>현재 이동 가능한 전주·완주권과 통근 확인이 필요한 근교, 이사 또는 원격 협의가 필요한 타지역을 분명하게 구분합니다.</p></div><span class="panel-pill">KOREA / ALL REGIONS</span></div>
+
+            <fieldset class="region-filter"><legend>근무 지역 범위</legend><div class="region-options" id="region-options">
+              <button type="button" class="region-option is-selected" data-region="all" aria-pressed="true">전체 지역</button>
+              <button type="button" class="region-option" data-region="nearby" aria-pressed="false">전주·완주권</button>
+              <button type="button" class="region-option" data-region="expanded" aria-pressed="false">근교·통근 확인</button>
+              <button type="button" class="region-option" data-region="relocation" aria-pressed="false">타지역·이사/원격협의 필요</button>
+              <button type="button" class="region-option" data-region="unknown" aria-pressed="false">위치 미확인</button>
+            </div></fieldset>
+
+            <div class="filters" aria-label="오프라인 공고 필터">
+              <label class="search-field" for="search-offline"><svg class="icon"><use href="#icon-search"/></svg><span class="sr-only">오프라인 공고 검색</span><input type="search" id="search-offline" placeholder="직무, 회사, 지역, 키워드 검색" autocomplete="off"></label>
+              <label class="select-field" for="province-offline"><span>시·도</span><select id="province-offline"><option value="all">전국 전체</option><option value="서울">서울</option><option value="부산">부산</option><option value="대구">대구</option><option value="인천">인천</option><option value="광주">광주</option><option value="대전">대전</option><option value="울산">울산</option><option value="세종">세종</option><option value="경기">경기</option><option value="강원">강원</option><option value="충북">충북</option><option value="충남">충남</option><option value="전북">전북</option><option value="전남">전남</option><option value="경북">경북</option><option value="경남">경남</option><option value="제주">제주</option><option value="unknown">미확인</option></select></label>
+              <label class="select-field" for="category-offline"><span>직무</span><select id="category-offline"><option value="all">전체 분야</option><option value="marketing">마케팅</option><option value="advertising">광고</option><option value="translation">번역</option><option value="interpreting">통역</option><option value="content">콘텐츠</option><option value="other">기타</option></select></label>
+              <label class="select-field" for="archive-offline"><span>기록</span><select id="archive-offline"><option value="all">전체 기록</option><option value="current">최근 수집</option><option value="archived">과거 기록</option><option value="unverified">수집 여부 미검증</option></select></label>
+              <label class="select-field" for="language-fit-offline"><span>언어</span><select id="language-fit-offline"><option value="all">적합성 전체</option><option value="match">부합 가능</option><option value="mismatch">불일치</option><option value="unknown">미확인</option></select></label>
+              <label class="check-field" for="saved-offline"><input type="checkbox" id="saved-offline"><span>관심 공고만</span></label>
+            </div>
+            <div class="results-head"><p id="count-offline" class="results-count" role="status" aria-live="polite">공고를 불러오는 중입니다.</p><p class="results-note">지역 분류는 공고에 적힌 위치 기준 · 실제 통근 가능성 별도 확인</p></div>
+            <div class="jobs-grid" id="list-offline" aria-label="오프라인 공고 목록"></div>
+            <div class="more-wrap"><button type="button" id="more-offline" class="more-button" hidden>공고 더 보기</button></div>
+          </section>
+
+          <details class="manual-entry" id="manual-entry">
+            <summary><span>공고 직접 추가 <small>Upwork 등에서 찾은 공고 링크를 저장</small></span><span class="manual-count" id="manual-count">저장 0건</span></summary>
+            <div class="manual-content">
+              <p>플랫폼에 로그인한 뒤 관심 있는 공고의 링크를 복사해 등록하세요. 브라우저에만 보관되며 자동 수집 공고와 출처를 구분해 표시합니다.</p>
+              <form id="manual-form" class="manual-form">
+                <label><span>공고 제목 <strong>필수</strong></span><input id="manual-title" type="text" required maxlength="180" placeholder="예: Korean Translator"></label>
+                <label><span>공고 URL <strong>필수</strong></span><input id="manual-url" type="url" required maxlength="2048" placeholder="https://…"></label>
+                <label><span>회사 / 의뢰인</span><input id="manual-company" type="text" maxlength="160" placeholder="미입력 가능"></label>
+                <label><span>채용 유형</span><select id="manual-market"><option value="online">온라인 · 프리랜스</option><option value="offline">오프라인 · 전국</option></select></label>
+                <label><span>직무 분야</span><select id="manual-category"><option value="translation">번역</option><option value="marketing">마케팅</option><option value="advertising">광고</option><option value="content">콘텐츠</option><option value="interpreting">통역 (오프라인)</option><option value="other">기타</option></select></label>
+                <label><span>근무 위치</span><input id="manual-location" type="text" maxlength="160" placeholder="예: 전주시 / 원격 / 미기재 가능"></label>
+                <label class="manual-notes"><span>메모 / 업무 설명</span><textarea id="manual-description" rows="3" maxlength="2000" placeholder="원문에서 확인한 사항을 기록하세요."></textarea></label>
+                <div class="manual-actions"><button type="submit" class="manual-submit">관심 공고 저장</button><span id="manual-feedback" role="status" aria-live="polite"></span></div>
+              </form>
+              <div id="manual-saved-list" class="manual-saved-list" aria-label="직접 추가한 공고"></div>
+            </div>
+          </details>
+
+          <details class="source-drawer" id="source-drawer"><summary><span>데이터 수집 현황 및 출처 상태</span><span class="source-summary" id="source-summary">확인 중</span></summary><div class="source-detail"><p>각 출처의 수집 결과와 확인 시점입니다. 수집 실패·미확인 항목은 실제 채용 기회가 없다는 뜻이 아닙니다.</p><ul id="source-list" class="source-list"></ul></div></details>
+        </section>
+      </main>
+      <footer class="site-footer"><span>NICOLE / JOB RADAR</span><p>공고·급여·마감일·지원 조건은 변경될 수 있습니다. 지원 전 원문을 확인하세요. 관심 공고는 이 브라우저에만 저장됩니다.</p></footer>
+    </div>
+    <noscript><p class="noscript">공고를 보려면 브라우저에서 JavaScript를 활성화하세요.</p></noscript>
+  </body>
+</html>
