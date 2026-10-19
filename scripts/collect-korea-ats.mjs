@@ -1,4 +1,5 @@
 import { koreaCategory, koreaProvince, commuteRegion } from './collect-korea.mjs';
+import { excludeQualificationReason } from './rules.mjs';
 
 // Opt-in public, first-party ATS boards already referenced by the user's existing
 // job-search-radar collector. This is a supplemental sample of employers, NOT an
@@ -17,6 +18,7 @@ function plain(text) {
 
 export function normalizeAtsJob(row, board, { now = new Date().toISOString() } = {}) {
   if (!row?.id || !ROLE.test(row.title || '')) return null;
+  if (excludeQualificationReason({ title: row.title, description: row.content })) return null;
   const location = String(row?.location?.name || '').trim();
   // Without an explicitly named Korean location, a remote role cannot be
   // claimed to accept applicants living in South Korea.

@@ -11,6 +11,40 @@ const INTERPRETING_RE = /\b(interpreter|interpreters|interpreting|interpretation
 const SPANISH_RE = /\b(spanish|espa[nñ]ol|castilian|latam|latin\s+american)\b|스페인어/i;
 const KOREAN_RE = /\b(korean|hangul)\b|한국어|한국말/i;
 const ENGLISH_RE = /\b(english|anglophone|englisch)\b|영어/i;
+
+// This user's Korean is beginner/intermediate, and marketing experience is
+// entry-level. These are mandatory suitability exclusions for *automatic*
+// collection, separate from geography and informational manual bookmarks.
+export function excludeQualificationReason({ title = '', description = '' } = {}) {
+  const heading = safeText(title, 400);
+  const body = safeText(description, 10000);
+  const combined = `${heading} ${body}`;
+  // A Korean-language localization professional is necessarily being hired
+  // to produce/review Korean, regardless of whether the ad spells out TOPIK.
+  if (/(?:\bkorean\b|한국어)\s+(?:locali[sz](?:ation|er|ing)|translat(?:ion|or|ing)|linguist|copy\s*edit(?:or|ing)|proofread(?:er|ing)|subtitl(?:e|ing))\b|한국어\s*(?:번역|현지화|감수|교정|자막)/i.test(heading)) {
+    return 'korean_language_professional';
+  }
+  const koreanHigh = /\b(?:native|near[- ]native|fluent|advanced|business[- ]level|professional[- ]level|excellent)\s+(?:spoken\s+|written\s+|oral\s+)?korean\b|\bkorean\b.{0,40}\b(?:native|near[- ]native|fluen(?:t|cy)|advanced|business[- ]level|professional[- ]level|c1|c2)\b|한국어.{0,20}(?:능통|원어민\s*수준|고급|상급|비즈니스\s*(?:수준|회화)|유창|5급|6급)|(?:비즈니스\s*한국어|한국어\s*원어민)/i;
+  if (koreanHigh.test(combined)) return 'advanced_korean_required';
+  // Restrict experience matching to role *requirements*: "company has 10
+  // years of experience" and "company founded 10 years ago" are not criteria.
+  const experienceTitle = /(?:경력\s*)?(?:[5-9]|1\d|[2-9]\d)\s*년\s*(?:이상|이상의|차\s*이상|경력)|(?:\b[5-9]|\b[1-9]\d)\s*\+\s*years?\b|\b(?:senior|lead|principal)\b.*\b(?:[5-9]|1\d)\s*years?\b/i;
+  if (experienceTitle.test(heading)) return 'experience_5plus_required';
+  const requiredExperience = /(?:\b(?:minimum\s+of|at\s+least|minimum|required|requires?|must\s+have|looking\s+for)\s+)?\b(?:[5-9]|[1-9]\d)\s*\+?\s*(?:to\s*\d+\s*)?years?\s+(?:of\s+)?(?:relevant\s+|professional\s+|proven\s+|prior\s+|hands[- ]on\s+)?(?:experience|background|expertise)\b|\b(?:experience|background|expertise)\s+(?:of\s+|for\s+|minimum\s+|at\s+least\s+)?(?:[5-9]|[1-9]\d)\s*\+?\s*years?\b|(?:경력|실무\s*경력|관련\s*경력)\s*(?:[5-9]|[1-9]\d)\s*년\s*(?:이상|이상의|필수|요구)|(?:[5-9]|[1-9]\d)\s*년\s*이상\s*(?:경력|실무)/i;
+  const domainExperience = /\b(?:[5-9]|[1-9]\d)\s*\+?\s*years?\s+of\s+(?:[\w&/-]+\s+){1,4}experience\b/gi;
+  for (const match of body.matchAll(domainExperience)) {
+    const prefix = body.slice(Math.max(0, match.index - 110), match.index);
+    if (/\b(?:requirements?|qualifications?|must\s+have|need(?:ed)?|candidate|you\s+(?:have|bring)|minimum|at\s+least|seeking)\b/i.test(prefix) ||
+        (/\+/.test(match[0]) && !/\b(?:company|firm|business|agency|organisation|organization|we\s+have)\b/i.test(prefix))) {
+      return 'experience_5plus_required';
+    }
+  }
+  // The experience requirement normally appears under Requirements/
+  // Qualifications, or in an explicit "5+ years of experience" statement.
+  const withoutEmployerTenure = body.replace(/\b(?:our|the|this)\s+(?:company|firm|agency|organisation|organization|business)\s+(?:has|brings|boasts|possesses)\s+(?:over\s+|more\s+than\s+)?\d+\s*\+?\s*years?\s+of\s+(?:relevant\s+|professional\s+)?experience\b/gi, '');
+  if (requiredExperience.test(withoutEmployerTenure)) return 'experience_5plus_required';
+  return null;
+}
 const GERMAN_RE = /\b(german|deutsch|deutschkenntnisse)\b|독일어/i;
 const FRENCH_RE = /\b(french|fran[cç]ais|franz[oö]sisch)\b|프랑스어/i;
 const REQUIREMENT_RE = /\b(required|mandatory|must\s+(?:speak|be|have)|fluency\s+in|fluent\s+in|native\s+(?:speaker|level)|proficien(?:t|cy)|bilingual|written\s+and\s+spoken|kenntnisse|niveau|verhandlungssicher(?:e|em|er|es)?|sehr\s+gut(?:e|es)?|c1|c2)\b|필수|능통|requerido|imprescindible|fluido|indispensable/i;

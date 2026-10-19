@@ -5,7 +5,7 @@ import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import {
-  assessEligibility, assessLanguageFit, classifyRole, dedupeJobs, excludeOnlineJobReason, extractLanguages, isoDate,
+  assessEligibility, assessLanguageFit, classifyRole, dedupeJobs, excludeOnlineJobReason, excludeQualificationReason, extractLanguages, isoDate,
   requiresPhysicalAttendance, safePublicUrl, safeText, stableId,
 } from './rules.mjs';
 
@@ -32,6 +32,11 @@ function commonJob({ source, providerId, url, title, company, description, locat
   if (!safeUrl || !cleanTitle || !cleanCompany) return null;
   const category = classifyRole({ title: cleanTitle, description, categories });
   if (!category) return null;
+  const qualificationIssue = excludeQualificationReason({ title: cleanTitle, description });
+  if (qualificationIssue) {
+    onExcluded?.({ url: safeUrl, reason: qualificationIssue });
+    return null;
+  }
   const excludeReason = excludeOnlineJobReason({ source, title: cleanTitle, description, location, restriction, category },
     { homeCountry, knownLanguages: languages });
   if (excludeReason) {
@@ -317,7 +322,7 @@ export function mergeHistoricalFeed(incoming, previous, { retentionDays = 60, ma
   const explicitlyExcludedUrls = new Set(excludedUrls.map((url) => safePublicUrl(url)).filter(Boolean));
   const priorById = new Map(priorList.filter((j) => j && typeof j.id === 'string').map((j) => [j.id, j]));
   const eligibleIncoming = incoming.jobs.filter((job) => job.sourceKind === 'manual' ||
-    !excludeOnlineJobReason(job, { knownLanguages }));
+    (!excludeOnlineJobReason(job, { knownLanguages }) && !excludeQualificationReason(job)));
   const current = eligibleIncoming.map((job) => {
     const earlier = priorById.get(job.id);
     return {
@@ -337,7 +342,8 @@ export function mergeHistoricalFeed(incoming, previous, { retentionDays = 60, ma
     // Drop previously misclassified records when a newer, stricter quality gate proves the role requires physical attendance.
     if ((job.market === 'online' && job.category === 'interpreting') ||
         (job.source === 'Arbeitnow' && requiresPhysicalAttendance(job.description))) return [];
-    if (job.sourceKind !== 'manual' && excludeOnlineJobReason(job, { knownLanguages })) return [];
+    if (job.sourceKind !== 'manual' &&
+      (excludeOnlineJobReason(job, { knownLanguages }) || excludeQualificationReason(job))) return [];
     const previousSeen = isoDate(job.lastSeenAt) || isoDate(job.verifiedAt) || isoDate(previous?.updatedAt);
     if (!previousSeen || fetchedAt - Date.parse(previousSeen) > maxAgeMs) return [];
     const url = safePublicUrl(job.url);

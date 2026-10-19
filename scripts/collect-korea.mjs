@@ -1,4 +1,5 @@
 // Nationwide Korea job discovery through the official Work24 open API.
+import { excludeQualificationReason } from './rules.mjs';
 // API specifications: https://www.work24.go.kr/cm/e/a/0110/selectOpenApiIntro.do
 // This adapter deliberately does not pretend a job was verified without a key.
 const ENDPOINT = 'https://www.work24.go.kr/cm/openApi/call/wk/callOpenApiSvcInfo210L01.do';
@@ -104,7 +105,8 @@ export function parseWork24Xml(xml, { now = new Date().toISOString() } = {}) {
       ? officialDetail.href
       : validJobUrl(tag(raw, 'wantedInfoUrl')) || validJobUrl(tag(raw, 'wantedMobileInfoUrl'));
     const roleDetails = `${title} ${tag(raw, 'indTpNm')}`;
-    if (!identifier || !title || !url || !TOPIC.test(roleDetails)) return [];
+    if (!identifier || !title || !url || !TOPIC.test(roleDetails) ||
+      excludeQualificationReason({ title, description: roleDetails })) return [];
     const workplaceMode = /재택|원격근무|리모트|remote\s*work/i.test(title) ? 'remote' : 'unknown';
     const category = koreaCategory(title);
     const pay = [tag(raw, 'salTpNm'), tag(raw, 'sal')].filter(Boolean).join(' ');
