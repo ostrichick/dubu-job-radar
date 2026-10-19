@@ -36,6 +36,7 @@ const sourceStatusNames = { ok: 'Collected', partial: 'Partial', error: 'Error',
 const sourceKindNames = {
   official: 'Official job board', official_ats: 'Employer application system', official_government: 'Government job board',
   public_api: 'Public API', employer: 'Employer listing', aggregator: 'Job aggregator', manual: 'Manually added · Unverified', platform: 'Platform',
+  curated_research: 'Individually researched · Check original',
 };
 
 const $ = (id) => document.getElementById(id);
@@ -342,6 +343,7 @@ function createCard(job) {
   if (job.archived) chips.append(el('span', 'history-chip', 'Not in latest collection · Historical'));
   else if (job.collectionState === 'unverified' && !job.manual) chips.append(el('span', 'history-chip is-unverified', 'Collection unverified'));
   if (job.manual) chips.append(el('span', 'history-chip is-manual', 'Added manually'));
+  if (job.sourceKind === 'curated_research') chips.append(el('span', 'history-chip is-manual', 'Original page individually reviewed'));
   if (job.languageFit === 'mismatch') chips.append(el('span', 'language-fit-chip is-mismatch', 'Language mismatch · Check'));
   else if (job.languageFit === 'match') chips.append(el('span', 'language-fit-chip is-match', 'Possible language match'));
   const saved = state.saved.has(job.id);

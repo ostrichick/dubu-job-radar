@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "instructions": "Individually reviewed URLs and researcher-written summaries. This file is not a scraper, and the jobs are not automatically revisited every six hours.",
+  "jobs": [
+    {
+      "source": "Hanultari",
+      "url": "https://mcfamily.or.kr/en/jobs/opening/14881",
+      "title": "Spanish/English Online Team · Social Media and Content Support",
+      "company": "Chingu Mobile",
+      "market": "offline",
+      "workplaceMode": "onsite",
+      "location": "Geumcheon-gu, Seoul, South Korea",
+      "category": "marketing",
+      "postedAt": "2026-09-07",
+      "deadline": "2026-11-06",
+      "reviewedAt": "2026-10-19T00:00:00Z",
+      "priority": "high",
+      "languageRequirements": "Spanish and English customer communication required; Korean not specified",
+      "essentialRequirements": "No education or work experience requirement. Must communicate effectively with Spanish- and English-speaking customers. Some social media and customer service duties.",
+      "requiredExperienceYears": 0,
+      "requiredKoreanLevel": "unknown",
+      "homeCountryEligible": "unknown",
+      "eligibilityNote": "South Korea-based role; English fluency needs individual confirmation. On-site in Seoul, relocation needed from Jeonju.",
+      "researchSummary": "Mix of Spanish/English customer support, content review and managing social accounts. No experience requirement; confirm English competence and the customer-facing workload.",
+      "researchNote": "Original source marks this listing open until 2026-11-06. Includes non-marketing support duties, not purely a marketing position."
+    },
+    {
+      "source": "KOWORK",
+      "url": "https://kowork.kr/en/post/1924",
+      "title": "Global Seeding Marketing Short-term Intern (Foreign Language Proficiency Required)",
+      "company": "The Founders (Anua)",
+      "market": "offline",
+      "workplaceMode": "onsite",
+      "location": "Gangnam-gu, Seoul, South Korea",
+      "category": "marketing",
+      "postedAt": null,
+      "deadline": null,
+      "reviewedAt": "2026-10-19T00:00:00Z",
+      "priority": "high",
+      "languageRequirements": "One of Spanish, French or Arabic; Spanish accepted",
+      "essentialRequirements": "Second foreign language communication, selecting Spanish or French or Arabic. Interest in beauty and short-form SNS. No minimum years specified. Source page does not show a definitive application deadline.",
+      "requiredExperienceYears": 0,
+      "requiredKoreanLevel": "unknown",
+      "homeCountryEligible": "possible",
+      "eligibilityNote": "KOWORK lists F-6 among preferred visas. Confirm whether applications remain open and whether meetings require Korean.",
+      "researchSummary": "Skincare short-form content research and foreign-language influencer campaign coordination. Spanish is explicitly one of the accepted languages. Internship in Seoul.",
+      "researchNote": "No explicit application deadline in the public page. Present availability and Korean workplace requirements require confirmation."
+    }
+  ]
+}

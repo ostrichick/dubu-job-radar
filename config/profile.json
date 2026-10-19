@@ -21,7 +21,8 @@
     "korea": false,
     "koreaAts": true,
     "internationalAts": true,
-    "kowork": true
+    "kowork": true,
+    "curatedResearch": true
   },
   "manualFile": "config/manual-jobs.json",
   "upworkSearches": [

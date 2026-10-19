@@ -4,6 +4,7 @@ import { readFile, mkdir, rename, writeFile, stat, unlink } from 'node:fs/promis
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
+import { collectCuratedResearch } from './curated-research.mjs';
 import {
   assessEligibility, assessLanguageFit, classifyRole, dedupeJobs, excludeOnlineJobReason, excludeQualificationReason, extractLanguages, isoDate,
   requiresPhysicalAttendance, safePublicUrl, safeText, stableId,
@@ -289,6 +290,11 @@ export async function buildFeed({ root = ROOT, fetchImpl = fetch, readFileImpl =
     const collector = koworkCollector || (await import('./collect-kowork.mjs')).collectKoworkJobs;
     sourceTasks.push(collector({ fetchImpl, now, timeoutMs }));
   }
+  if (collectors.curatedResearch !== false) {
+    sourceTasks.push(collectCuratedResearch({
+      root, readFileImpl, now, languages: profile.spokenLanguages,
+    }));
+  }
   sourceTasks.push(optionalManual({ root, filename: profile.manualFile || 'config/manual-jobs.json', now, readFileImpl }));
   const results = await Promise.all(sourceTasks);
   const jobs = dedupeJobs(results.flatMap((x) => x.jobs).filter((job) =>
@@ -358,6 +364,10 @@ export function mergeHistoricalFeed(incoming, previous, { retentionDays = 60, ma
   const historical = priorList.flatMap((job) => {
     if (!job || typeof job.id !== 'string' || seenIds.has(job.id) || !safePublicUrl(job.url) ||
       explicitlyExcludedUrls.has(safePublicUrl(job.url))) return [];
+    if (job.sourceKind === 'curated_research' &&
+        (!isoDate(job.researchReviewedAt) ||
+        fetchedAt - Date.parse(isoDate(job.researchReviewedAt)) > 30 * 86400_000 ||
+        (isoDate(job.deadline) && Date.parse(isoDate(job.deadline)) < fetchedAt))) return [];
     // Drop previously misclassified records when a newer, stricter quality gate proves the role requires physical attendance.
     if ((job.market === 'online' && job.category === 'interpreting') ||
         (job.source === 'Arbeitnow' && requiresPhysicalAttendance(job.description))) return [];
