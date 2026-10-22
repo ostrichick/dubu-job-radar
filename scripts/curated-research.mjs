@@ -13,7 +13,7 @@ const MAX_REVIEW_AGE_DAYS = 30;
 const MAX_RECORDS = 1000;
 const allowedSources = new Set(['KOWORK', 'Hanultari', 'JOBPLOY', 'K-WORK',
   'PeopleNJob', 'Company Careers', 'LinkedIn', 'ProZ', 'Upwork', 'Workana',
-  'Other original source']);
+  'Saramin', 'JobKorea', '전주교차로', 'Other original source']);
 const tombstoneSources = new Set([...allowedSources, 'Arbeitnow', 'Remote OK']);
 
 function dateAt(value) {

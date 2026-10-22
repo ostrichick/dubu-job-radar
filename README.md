@@ -24,6 +24,10 @@ K-WORK: https://k-work.or.kr/empmnInfo/empmn/list.do
 JOBPLOY: https://www.jobploy.kr/en
 PeopleNJob 신입 공고: https://www.peoplenjob.com/jobs?career_level=1
 
+전주교차로 지역 채용: https://m.gyocharo.com/job/job_main.do (전주·완주 현장 공고. 개별 페이지를 확인한 공고만 수동 등록하며, '상시채용' 표시가 고용주의 현재 채용 확정을 의미하지는 않습니다.)
+전주교차로 사무직 탐색: https://m.gyocharo.com/job/job_list.do?codename=office
+사람인 지역 원문: https://www.saramin.co.kr (2026-10-22 전주 콘텐츠·마케팅 개별 공고 확인; 게시 시작일을 별도 검증 없는 작성일로 쓰지 않음.)
+
 KOWORK 공개 SSR 목록과 소수의 공개 상세 URL을 실제로 확인하는 최소 정보 수집기가 활성화되었습니다 (scripts/collect-kowork.mjs). 매 갱신마다 공개 목록 1페이지, 공개 상세 최대 6개만 순차 요청하며 요청 간 약 1.1초 간격을 둡니다. 제목·회사·근무지역·원본 URL과 간략한 출처 정보만 저장합니다. 원문 본문·이미지·개인 지원자 정보는 저장하지 않으며, 로그인이나 robots.txt에서 금지한 /api/ 경로에 접근하지 않습니다. 이 정보가 올라가는 GitHub Pages는 공개 사이트이므로 완전한 사적 로컬 수집과는 다릅니다.
 
 사이트맵 전체를 한 번에 수집하거나 대규모로 미러링하지 않습니다. 더 넓은 KOWORK 데이터가 필요하면 운영사 master@kowork.kr 에 API·제휴 데이터 공급을 문의해야 합니다. 모집 상태·한국어 요구 수준·지원자격은 언제든 바뀔 수 있으므로 각 공고의 직접 링크에서 최종 확인합니다. 수동 저장 기능도 유지합니다.
