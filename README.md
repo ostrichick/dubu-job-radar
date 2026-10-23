@@ -1,4 +1,6 @@
-﻿# Dubu Job Radar
+> **Moved (2026-10-23):** Dubu Job Radar now lives at https://ostrichick.github.io/job-search-radar/dubu/ (repository ostrichick/job-search-radar; collector in profiles/dubu). This repository only publishes a redirect page; the code below is kept for history.
+
+# Dubu Job Radar
 
 아내의 실제 취업 가능성을 우선해 전주·완주 및 한국 전국의 오프라인 채용과 한국 거주자가 지원할 가능성이 있는 원격 업무를 별도 탭에서 조사하는 영어 UI 채용 레이더입니다. 공고 수가 많다는 것과 지원 가능하다는 것은 구별합니다.
 

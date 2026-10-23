@@ -1,17 +1,16 @@
-name: Refresh Dubu jobs and deploy Pages
+name: Deploy redirect to the merged site
 
+# Dubu Job Radar moved to https://ostrichick.github.io/job-search-radar/dubu/
+# (repository ostrichick/job-search-radar, collector in profiles/dubu).
+# This repository no longer collects jobs; it only publishes a redirect page
+# so old bookmarks keep working. The previous UI and data remain in history.
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - public/jobs.json
   workflow_dispatch:
-  schedule:
-    # Respect Remotive's recommended maximum of four API refreshes per day.
-    - cron: '23 */6 * * *'
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
@@ -22,46 +21,13 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci --ignore-scripts
-      - run: npm run check
-      # Scheduled refreshes change the feed, not the UI code. A flaky browser
-      # test must not block the data refresh; pushes/manual runs still run E2E.
-      - run: npx playwright install --with-deps chromium
-        if: github.event_name != 'schedule'
-      - run: npm run test:e2e
-        if: github.event_name != 'schedule'
-      - run: npm run refresh
-      - name: Validate generated feed
-        run: |
-          node --input-type=module -e "import {readFileSync} from 'node:fs';const f=JSON.parse(readFileSync('public/jobs.json','utf8'));if(!Array.isArray(f.jobs)||!Array.isArray(f.sourceStatus)||!f.updatedAt)process.exit(1)"
-      - name: Preserve historic feed for next scheduled refresh
-        shell: bash
-        run: |
-          git fetch origin main
-          if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
-            echo 'main changed while collecting; deploying current snapshot without persistence'
-            exit 0
-          fi
-          git add public/jobs.json
-          if git diff --cached --quiet -- public/jobs.json; then
-            echo 'No feed changes to persist'
-            exit 0
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Refresh Dubu jobs snapshot [skip ci]'
-          git push origin HEAD:main
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
-          path: public
+          path: redirect
 
   deploy:
     runs-on: ubuntu-24.04
